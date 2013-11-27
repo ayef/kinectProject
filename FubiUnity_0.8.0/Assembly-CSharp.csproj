@@ -44,6 +44,7 @@
 	</Reference>
   </ItemGroup>
   <ItemGroup>
+     <Compile Include="Assets\FUBI\FilterVisualization.cs" />
      <Compile Include="Assets\FUBI\FubiUnity.cs" />
      <Compile Include="Assets\FUBI\MultiTexture2D.cs" />
      <Compile Include="Assets\Filter.cs" />

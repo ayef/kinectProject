@@ -52,7 +52,7 @@ public class Filter {
 			else {
 				weights[i] = 1 - sumWeights;
 			}
-			Debug.Log ("weight: " + i + " " + weights[i]);
+			//Debug.Log ("weight: " + i + " " + weights[i]);
 		}
 		
 	}

@@ -7,15 +7,33 @@ using FubiNET;
 public class FubiUnity : MonoBehaviour
 {	
 	
-	//AA: Filtering for kinect Project variables
+	//AA: Variables added for Filtering for Kinect Arm pointing Project:
+	
 	public bool m_bUseJointFiltering = false;
 	public bool m_bUseVectorFiltering = true;
-	public Filter filter = null;				// Our filter class
-	public GameObject[] MyGameObjects;			// Gameobject contains sphere
-	Vector2 m_absPixelPosition = new Vector2(0, 0);
-	Vector2 m_previousAbsPixelPosition = new Vector2(0, 0);
-	// Variables for all the filter combinations
+	public Filter filter = null;					// Our filter class
+	public GameObject[] MyGameObjects;				// Gameobject array - currently empty
+	Vector2 m_absPixelPosition = new Vector2(0, 0);	// GUI coordinate space coordinates for cursor
+	Vector2 m_previousAbsPixelPosition = new Vector2(0, 0);	// GUI coordinate space coordinates for some previous value of the cursor poistion
+
+	//AA: Variables for the filter menu checkboxes (Called 'toggles' in Unity)
 	bool m_bUseSmoothingFilter = true;
+	
+	//AA: Variables for the Filter Output display
+	private Texture2D m_filterOutputTexture;	// Texture used for drawing the filter outputs
+	private int filterOutputLocX = Screen.width/3;	// Coordinates of top left corner of filter output texture
+	private int filterOutputLocY = 10;					// 
+	private int filterOutputWidth;	// Width and height of the kinect-writeable area
+	private int filterOutputHeight;	// Initialized in Start()
+	private int borderWidth = 10;	// Control witdh of border on all sides on right & bottom side of writeable area
+	
+	// To check if user has changed window size
+	private int prevScreenWidth = Screen.width;
+	private int prevScreenHeight = Screen.height;
+	
+	//AA: Colrs for colouring the different filter outputs
+	Color [] bluePixels =  new Color [4];
+	
 	
 	// Global properties
 	public bool m_disableFubi = false;	
@@ -23,10 +41,8 @@ public class FubiUnity : MonoBehaviour
 	public bool m_disableCursorWithGestures = true;	
     public bool m_disableTrackingImageWithSwipeMenu = true;
 
-	// AA: unused variables
+	// AA: fubi unused variables
 	//	public bool m_disableSnapping = true;
-	
-// AA: unused variables
     // The gesture symbols
     public MultiTexture2D[] m_gestureSymbols = new MultiTexture2D[0];
     Dictionary<string, MultiTexture2D> m_gestureSymbolDict = new Dictionary<string, MultiTexture2D>();
@@ -35,7 +51,7 @@ public class FubiUnity : MonoBehaviour
     public Texture2D m_defaultCursor;
     public float m_cursorScale = 0.15f;
 
-	// AA: these are not used anywhere
+	// AA: fubi unused variables
 //	// Swipe gui elements
 //    public AudioClip m_swipeSound;
 //    public Texture2D m_swipeCenterNormal;
@@ -49,8 +65,6 @@ public class FubiUnity : MonoBehaviour
     // The current user for all controls
     uint m_currentUser = 0;
 
-	// AA: My drawing texture
-	private Texture2D m_filterOutputTexture;
 	
 	
 	// The depth texture
@@ -60,7 +74,7 @@ public class FubiUnity : MonoBehaviour
     // The raw image from Fubi
     byte[] m_rawImage;
     // m_factor for clinching the image
-    int m_factor = 2;
+    int m_factor = 3;
     // Depthmap resolution
     int m_xRes = 640;
     int m_yRes = 480;
@@ -111,15 +125,25 @@ public class FubiUnity : MonoBehaviour
                 <Recognizer name=""{3}""/>
             </State>
         </CombinationRecognizer>";	
-	
+	//AA: Resizes the writeable area when screen is resized
+	void WriteableAreaResize() 
+	{
+		filterOutputWidth = Screen.width - filterOutputLocX - borderWidth ;
+		filterOutputHeight = Screen.height - filterOutputLocY - borderWidth;
+		
+		if( m_filterOutputTexture == null)
+			m_filterOutputTexture = new Texture2D(filterOutputWidth , filterOutputHeight);
+		else
+			m_filterOutputTexture.Resize (filterOutputWidth , filterOutputHeight);
+	}	
     // Initialization
     void Start()
     {
-        //AA: Our filter class
+        //AA: Filter visalization related initializations 
 		filter = new Filter();
-		int factor = 2;
-		m_filterOutputTexture = new Texture2D(Screen.width / factor, Screen.height);
-		
+		WriteableAreaResize();
+		bluePixels[0] = bluePixels[1] = bluePixels[2] = bluePixels[3] = Color.blue;
+		FilterVisualization.DrawCircle(m_filterOutputTexture, m_filterOutputTexture.width/2, m_filterOutputTexture.height/2, 100, Color.yellow);
 		
 		// First set instance so Fubi.release will not be called while destroying old objects
         instance = this;
@@ -319,10 +343,9 @@ public class FubiUnity : MonoBehaviour
        	Fubi.updateSensor();
 
 		// AA: Collision detection for our game object
-		
-		// convert the normalized screen pos to pixel pos
-		Vector2 screenPixelPos = Vector2.zero;
-		Ray ray = Camera.mainCamera.ScreenPointToRay(m_absPixelPosition);
+		// Convert from GUI coordinates (Top-left: 0,0 to Bottom-right ) to Screen coordinates ((Bottom-left: 0,0 to Top-right )): 
+		// Screen-coordinate.y = Screen.height - GUI-coordinate.y;
+		Ray ray = Camera.mainCamera.ScreenPointToRay(new Vector2(m_absPixelPosition.x, Screen.height - m_absPixelPosition.y));
 		
 		// check for underlying objects
 		RaycastHit hit;
@@ -379,40 +402,72 @@ public class FubiUnity : MonoBehaviour
     {
         // TODO change texture for dwell
         Texture2D cursorImg = m_defaultCursor;
+		Debug.Log ("In movemouse: mousePosX mousePosY " + mousePosX +" " + mousePosY );
 
         m_cursorAspect = (float)cursorImg.width / (float)cursorImg.height;
-		float width = m_cursorScale * m_cursorAspect * (float)Screen.height;
-		float height = m_cursorScale * (float)Screen.height;
-		float x = mousePosX * (float)Screen.width - 0.5f*width;
-		float y = mousePosY * (float)Screen.height - 0.5f*height;
-		Rect pos = new Rect(x, y, width, height);
-		if ((m_buttonsDisplayed || forceDisplay) && m_disableFubi == false)
-		{
-			//Debug.Log ("In movemouse: m_buttonsdisplayed " + m_buttonsDisplayed);
-			GUI.depth = -3;
-	        GUI.Label(pos, cursorImg);
-			m_buttonsDisplayed = false;
-		}
+		float width = m_cursorScale * m_cursorAspect * (float)m_filterOutputTexture.height;
+		float height = m_cursorScale * (float)m_filterOutputTexture.height;
+		float x = mousePosX * (float)m_filterOutputTexture.width - 0.5f*width;
+		float y = mousePosY * (float)m_filterOutputTexture.height - 0.5f*height;
+		Debug.Log ("cursor x y " +  x+ " " + y);
+
+		Rect pos = new Rect(filterOutputLocX + x, filterOutputLocY + y, width, height);
+		GUI.depth = -3;
+        GUI.Label(pos, cursorImg);
+
+//AA: Old code for mapping active screen - can delete
+//		float width = m_cursorScale * m_cursorAspect * (float)Screen.height;
+//		float height = m_cursorScale * (float)Screen.height;
+//		float x = mousePosX * (float)Screen.width - 0.5f*width;
+//		float y = mousePosY * (float)Screen.height - 0.5f*height;
+//		Rect pos = new Rect(x, y, width, height);
+//		if ((m_buttonsDisplayed || forceDisplay) && m_disableFubi == false)
+//		{
+//			Debug.Log ("In movemouse: cursor width height " + width +" " + height + " x y " + x+ " " + y);
+//			GUI.depth = -3;
+//	        GUI.Label(pos, cursorImg);
+//			m_buttonsDisplayed = false;
+//		}
 		m_absPixelPosition.x = x;
 		m_absPixelPosition.y = y;
 
-//		m_absPixelPosition.x = mousePosX * (float)Screen.width;
-//		m_absPixelPosition.y = mousePosY * (float)Screen.height;
+    }
+	
+	// Function added so that mouse input can be mapped to entire screen
+	void MoveActualMouse(float mousePosX, float mousePosY, bool forceDisplay = false)
+    {
+        // TODO change texture for dwell
+        Texture2D cursorImg = m_defaultCursor;
+        m_cursorAspect = (float)cursorImg.width / (float)cursorImg.height;
+		float width = m_cursorScale * m_cursorAspect * (float)m_filterOutputTexture.height;
+		float height = m_cursorScale * (float)Screen.height;
+		float x = mousePosX * (float)Screen.width - 0.5f*width;
+		float y = mousePosY * (float)Screen.height - 0.5f*height;
+
+		Rect pos = new Rect(x, y, width, height);
+		GUI.depth = -3;
+        GUI.Label(pos, cursorImg);
+
     }
 	
 	//AA: Draw the filter output
-	void drawFilterOutputs()
+	void DrawFilterOutputs()
 	{
 		int factor =2;
-        //Debug.Log ("m_absPixelPosition.x: " + m_absPixelPosition.x + " m_absPixelPosition.y: " + m_absPixelPosition.y);
-		//DrawLine(m_filterOutputTexture, (int)m_previousAbsPixelPosition.x, (int)m_previousAbsPixelPosition.y, (int)m_absPixelPosition.x, (int)m_absPixelPosition.y, Color.red);
-		m_previousAbsPixelPosition = m_absPixelPosition;
-		Color [] pixels =  new Color [4];
-		pixels[0] = pixels[1] = pixels[2] = pixels[3] = Color.blue;
-		//m_filterOutputTexture.SetPixel((int)m_absPixelPosition.x, (int)m_absPixelPosition.y, Color.red);
-        m_filterOutputTexture.SetPixels((int)( m_absPixelPosition.x / factor), (int)((Screen.height - m_absPixelPosition.y) / m_factor), 2, 2, pixels);
-        m_filterOutputTexture.Apply();
+		if(InBounds(m_filterOutputTexture , m_absPixelPosition ) )
+		{
+	       	m_filterOutputTexture.SetPixels((int)( m_absPixelPosition.x), (int)((filterOutputHeight - m_absPixelPosition.y) ), 2, 2, bluePixels);
+		}
 		
+	}
+	
+	//AA: Checks whether position is inside the texture
+	bool InBounds(Texture2D texture , Vector2 position ) 
+	{
+		if(position.x < texture.width - borderWidth && position.x >  borderWidth && position.y < texture.height - borderWidth && position.y >  borderWidth ) 
+			return true;
+		else
+			return false;
 	}
 
     // Upload the depthmap to the texture
@@ -438,21 +493,39 @@ public class FubiUnity : MonoBehaviour
     // Called for rendering the gui
     void OnGUI()
     {
-		// AA: we don't need swipemenu related variables
+		// AA: Position the depth image so the user can see the kinect output
         if (!m_disableTrackingImage && (!m_disableTrackingImageWithSwipeMenu || !m_swipeMenuDisplayedLastFrame))
 		{
 	        // Debug image
 			GUI.depth = -4;
-	        GUI.DrawTexture(new Rect(0, Screen.height-m_yRes/m_factor, m_xRes / m_factor, m_yRes / m_factor), m_depthMapTexture);
+	        GUI.DrawTexture(new Rect(25, Screen.height-m_yRes/m_factor - 25, m_xRes / m_factor, m_yRes / m_factor), m_depthMapTexture);
 	        //GUI.DrawTexture(new Rect(Screen.width-m_xRes/m_factor, Screen.height-m_yRes/m_factor, m_xRes / m_factor, m_yRes / m_factor), m_depthMapTexture);
 		}
-		//AA: draw our filter
-		GUI.DrawTexture(new Rect(Screen.width / 3 , 1, m_filterOutputTexture.width, m_filterOutputTexture.height), m_filterOutputTexture);
-		m_bUseSmoothingFilter = GUI.Toggle(new Rect(25,25,150,30), true, "Use Smoothing Filter");
 		
-//		GUILayout.Label(new Rect(25,25,100,30), "Smoothing Filter");
+		//AA: add the GUI elements
 		
-		//
+		GUI.Box (new Rect(25, 25, 200, 200) , "Filter Menu");
+		
+		m_bUseSmoothingFilter = GUI.Toggle(new Rect(35,50,150,30), m_bUseSmoothingFilter, "Use Smoothing Filter");
+		if( GUI.Button(new Rect(35, 100,150,30), "Clear"))
+		{
+			WriteableAreaResize();
+			FilterVisualization.DrawCircle(m_filterOutputTexture, m_filterOutputTexture.width/2, m_filterOutputTexture.height/2, 100, Color.yellow);
+			
+		}
+		if( prevScreenWidth != Screen.width || prevScreenHeight != Screen.height) 
+		{
+			// Resize writeable area, redraw the circle
+			WriteableAreaResize();
+			prevScreenWidth = Screen.width;
+			prevScreenHeight = Screen.height;
+			FilterVisualization.DrawCircle(m_filterOutputTexture, m_filterOutputTexture.width/2, m_filterOutputTexture.height/2, 100, Color.yellow);
+		}
+
+		//AA: Draw the writeable area
+		m_filterOutputTexture.Apply();
+		GUI.DrawTexture(new Rect(filterOutputLocX , filterOutputLocY, m_filterOutputTexture.width, m_filterOutputTexture.height), m_filterOutputTexture);
+		
 		
 		// Cursor
 		m_gotNewFubiCoordinates = false;
@@ -578,8 +651,9 @@ public class FubiUnity : MonoBehaviour
 //										m_snappingCoords.y = -1;
 //									}
 //									else
-	                            	MoveMouse(m_relativeCursorPosition.x, m_relativeCursorPosition.y);
-									drawFilterOutputs();
+									
+									MoveMouse(m_relativeCursorPosition.x, m_relativeCursorPosition.y);
+									DrawFilterOutputs();
 									m_gotNewFubiCoordinates = true;
 									m_lastCursorChangeDoneByFubi = true;
 								}
@@ -598,10 +672,11 @@ public class FubiUnity : MonoBehaviour
 			// Only move mouse if it wasn't changed by fubi the last time or or it really has changed
 			if (!m_lastCursorChangeDoneByFubi || mousePos != m_lastMousePos)
 			{
+				//AA: Old code for cursor placement
             	m_relativeCursorPosition.x = mousePos.x / (float)Screen.width;
 				m_relativeCursorPosition.y = 1.0f - (mousePos.y / (float)Screen.height);
             	// Get mouse X and Y position as a percentage of screen width and height
-            	MoveMouse(m_relativeCursorPosition.x, m_relativeCursorPosition.y, true);
+            	MoveActualMouse(m_relativeCursorPosition.x, m_relativeCursorPosition.y, true);
 				m_lastMousePos = mousePos;
 				m_lastCursorChangeDoneByFubi = false;
 			}
@@ -681,34 +756,34 @@ public class FubiUnity : MonoBehaviour
         }
         return click;
     }
-	
-	static public bool FubiButton(Rect r, string text, GUIStyle style)
-	{
-		bool cursorDisabled = instance.m_disableCursorWithGestures && instance.m_gesturesDisplayedLastFrame;
-		
-		instance.m_buttonsDisplayed = !cursorDisabled;
-		GUI.depth = -2;
-		bool click = false;
-		Rect checkRect = new Rect();
-		checkRect.x = r.x - r.height;
-		checkRect.y = r.y - r.height;
-		checkRect.width = r.width + 2*r.height;
-		checkRect.height = r.height + 2*r.height;
-		if (!cursorDisabled && rectContainsCursor(checkRect))
-		{
-			instance.m_snappingCoords = new Vector2(r.center.x / Screen.width, r.center.y / Screen.height);
-			GUI.Button(r, text, style.name+"-hover");
-            if (clickRecognized())
-                click = true;            
-		}
-		else
-		{
-			click = GUI.Button(r, text, style);
-		}
-		return click;
-	}
+// AA: FUBI button not required in this demo
+//	static public bool FubiButton(Rect r, string text, GUIStyle style)
+//	{
+//		bool cursorDisabled = instance.m_disableCursorWithGestures && instance.m_gesturesDisplayedLastFrame;
+//		
+//		instance.m_buttonsDisplayed = !cursorDisabled;
+//		GUI.depth = -2;
+//		bool click = false;
+//		Rect checkRect = new Rect();
+//		checkRect.x = r.x - r.height;
+//		checkRect.y = r.y - r.height;
+//		checkRect.width = r.width + 2*r.height;
+//		checkRect.height = r.height + 2*r.height;
+//		if (!cursorDisabled && rectContainsCursor(checkRect))
+//		{
+//			instance.m_snappingCoords = new Vector2(r.center.x / Screen.width, r.center.y / Screen.height);
+//			GUI.Button(r, text, style.name+"-hover");
+//            if (clickRecognized())
+//                click = true;            
+//		}
+//		else
+//		{
+//			click = GUI.Button(r, text, style);
+//		}
+//		return click;
+//	}
 
-//AA: We don't need the FUBI Gestures. Removed 'static public bool FubiGesture(Rect r, string name, GUIStyle style)'
+// AA: Removing this function disables click functionality so have not commented it out
 	static public bool FubiGesture(Rect r, string name, GUIStyle style)
 	{
 		GUI.depth = -2;

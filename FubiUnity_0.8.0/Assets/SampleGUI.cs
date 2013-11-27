@@ -31,11 +31,12 @@ public class SampleGUI : MonoBehaviour
 		float screenW8th = Screen.width / 8.0f;
 		float screenW4th = Screen.width / 4.0f;
 		float screenWHalf = Screen.width / 2.0f;			
-			
-		if (FubiUnity.FubiButton (new Rect (screenW8th, screenH8th, screenW8th, 100), "Fubi Button", "FubiButton"))
-		{
-			buttonPressed = true;
-		}
+	
+		// AA: commented fubi button
+//		if (FubiUnity.FubiButton (new Rect (screenW8th, screenH8th, screenW8th, 100), "Fubi Button", "FubiButton"))
+//		{
+//			buttonPressed = true;
+//		}
 		
 		// AA: commented fubi swipe menu
 //		string selection = FubiUnity.FubiSwipeMenu(new Vector2(screenWHalf, screenHHalf), screenH4th, options, "FubiSwipeMenu", "FubiSwipeCenter");
