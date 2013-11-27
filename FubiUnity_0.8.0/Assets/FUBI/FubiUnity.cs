@@ -19,21 +19,12 @@ public class FubiUnity : MonoBehaviour
 	//AA: Variables for the filter menu checkboxes (Called 'toggles' in Unity)
 	bool m_bUseSmoothingFilter = true;
 	
-	//AA: Variables for the Filter Output display
-	private Texture2D m_filterOutputTexture;	// Texture used for drawing the filter outputs
-	private int filterOutputLocX = Screen.width/3;	// Coordinates of top left corner of filter output texture
-	private int filterOutputLocY = 10;					// 
-	private int filterOutputWidth;	// Width and height of the kinect-writeable area
-	private int filterOutputHeight;	// Initialized in Start()
-	private int borderWidth = 10;	// Control witdh of border on all sides on right & bottom side of writeable area
+	//AA: Variables for the Filter Visualization display
+	FilterVisualization fv = null;
 	
 	// To check if user has changed window size
 	private int prevScreenWidth = Screen.width;
 	private int prevScreenHeight = Screen.height;
-	
-	//AA: Colrs for colouring the different filter outputs
-	Color [] bluePixels =  new Color [4];
-	
 	
 	// Global properties
 	public bool m_disableFubi = false;	
@@ -41,7 +32,7 @@ public class FubiUnity : MonoBehaviour
 	public bool m_disableCursorWithGestures = true;	
     public bool m_disableTrackingImageWithSwipeMenu = true;
 
-	// AA: fubi unused variables
+	// AA: Note - fubi unused variables
 	//	public bool m_disableSnapping = true;
     // The gesture symbols
     public MultiTexture2D[] m_gestureSymbols = new MultiTexture2D[0];
@@ -128,22 +119,17 @@ public class FubiUnity : MonoBehaviour
 	//AA: Resizes the writeable area when screen is resized
 	void WriteableAreaResize() 
 	{
-		filterOutputWidth = Screen.width - filterOutputLocX - borderWidth ;
-		filterOutputHeight = Screen.height - filterOutputLocY - borderWidth;
-		
-		if( m_filterOutputTexture == null)
-			m_filterOutputTexture = new Texture2D(filterOutputWidth , filterOutputHeight);
-		else
-			m_filterOutputTexture.Resize (filterOutputWidth , filterOutputHeight);
+		fv.Initialise();
 	}	
-    // Initialization
+    
+	// Initialization
     void Start()
     {
         //AA: Filter visalization related initializations 
 		filter = new Filter();
-		WriteableAreaResize();
-		bluePixels[0] = bluePixels[1] = bluePixels[2] = bluePixels[3] = Color.blue;
-		FilterVisualization.DrawCircle(m_filterOutputTexture, m_filterOutputTexture.width/2, m_filterOutputTexture.height/2, 100, Color.yellow);
+		fv = new FilterVisualization();
+		fv.Initialise();
+		fv.DrawCircle();
 		
 		// First set instance so Fubi.release will not be called while destroying old objects
         instance = this;
@@ -389,7 +375,7 @@ public class FubiUnity : MonoBehaviour
             m_swipeMenuDisplayedLastFrame = false;
 
         // Render tracking image
-		// AA: we don't need swipemenu related variables
+		// AA: This 
         if (!m_disableTrackingImage && (!m_disableTrackingImageWithSwipeMenu || !m_swipeMenuDisplayedLastFrame))
 		{
 			uint renderOptions = (uint)(FubiUtils.RenderOptions.Default | FubiUtils.RenderOptions.DetailedFaceShapes | FubiUtils.RenderOptions.FingerShapes);
@@ -405,13 +391,13 @@ public class FubiUnity : MonoBehaviour
 		Debug.Log ("In movemouse: mousePosX mousePosY " + mousePosX +" " + mousePosY );
 
         m_cursorAspect = (float)cursorImg.width / (float)cursorImg.height;
-		float width = m_cursorScale * m_cursorAspect * (float)m_filterOutputTexture.height;
-		float height = m_cursorScale * (float)m_filterOutputTexture.height;
-		float x = mousePosX * (float)m_filterOutputTexture.width - 0.5f*width;
-		float y = mousePosY * (float)m_filterOutputTexture.height - 0.5f*height;
+		float width = m_cursorScale * m_cursorAspect * (float)fv.m_filterOutputTexture.height;
+		float height = m_cursorScale * (float)fv.m_filterOutputTexture.height;
+		float x = mousePosX * (float)fv.m_filterOutputTexture.width - 0.5f*width;
+		float y = mousePosY * (float)fv.m_filterOutputTexture.height - 0.5f*height;
 		Debug.Log ("cursor x y " +  x+ " " + y);
 
-		Rect pos = new Rect(filterOutputLocX + x, filterOutputLocY + y, width, height);
+		Rect pos = new Rect(fv.filterOutputLocX + x, fv.filterOutputLocY + y, width, height);
 		GUI.depth = -3;
         GUI.Label(pos, cursorImg);
 
@@ -439,7 +425,7 @@ public class FubiUnity : MonoBehaviour
         // TODO change texture for dwell
         Texture2D cursorImg = m_defaultCursor;
         m_cursorAspect = (float)cursorImg.width / (float)cursorImg.height;
-		float width = m_cursorScale * m_cursorAspect * (float)m_filterOutputTexture.height;
+		float width = m_cursorScale * m_cursorAspect * (float)fv.m_filterOutputTexture.height;
 		float height = m_cursorScale * (float)Screen.height;
 		float x = mousePosX * (float)Screen.width - 0.5f*width;
 		float y = mousePosY * (float)Screen.height - 0.5f*height;
@@ -454,9 +440,10 @@ public class FubiUnity : MonoBehaviour
 	void DrawFilterOutputs()
 	{
 		int factor =2;
-		if(InBounds(m_filterOutputTexture , m_absPixelPosition ) )
+		if(InBounds(fv.m_filterOutputTexture , m_absPixelPosition ) )
 		{
-	       	m_filterOutputTexture.SetPixels((int)( m_absPixelPosition.x), (int)((filterOutputHeight - m_absPixelPosition.y) ), 2, 2, bluePixels);
+	       	fv.SetPixels(m_absPixelPosition);
+//			fv.m_filterOutputTexture.SetPixels((int)( m_absPixelPosition.x), (int)((fv.filterOutputHeight - m_absPixelPosition.y) ), 2, 2, bluePixels);
 		}
 		
 	}
@@ -464,7 +451,7 @@ public class FubiUnity : MonoBehaviour
 	//AA: Checks whether position is inside the texture
 	bool InBounds(Texture2D texture , Vector2 position ) 
 	{
-		if(position.x < texture.width - borderWidth && position.x >  borderWidth && position.y < texture.height - borderWidth && position.y >  borderWidth ) 
+		if(position.x < texture.width - fv.borderWidth && position.x >  fv.borderWidth && position.y < texture.height - fv.borderWidth && position.y >  fv.borderWidth ) 
 			return true;
 		else
 			return false;
@@ -506,11 +493,12 @@ public class FubiUnity : MonoBehaviour
 		
 		GUI.Box (new Rect(25, 25, 200, 200) , "Filter Menu");
 		
-		m_bUseSmoothingFilter = GUI.Toggle(new Rect(35,50,150,30), m_bUseSmoothingFilter, "Use Smoothing Filter");
+		m_bUseSmoothingFilter = GUI.Toggle(new Rect(35,50,150,30), m_bUseSmoothingFilter, " Use Smoothing Filter");
+		//m_bUseSmoothingFilter = GUI.Toggle(new Rect(35,50,150,30), m_bUseSmoothingFilter, " Use Smoothing Filter10");
 		if( GUI.Button(new Rect(35, 100,150,30), "Clear"))
 		{
 			WriteableAreaResize();
-			FilterVisualization.DrawCircle(m_filterOutputTexture, m_filterOutputTexture.width/2, m_filterOutputTexture.height/2, 100, Color.yellow);
+			fv.DrawCircle();
 			
 		}
 		if( prevScreenWidth != Screen.width || prevScreenHeight != Screen.height) 
@@ -519,12 +507,12 @@ public class FubiUnity : MonoBehaviour
 			WriteableAreaResize();
 			prevScreenWidth = Screen.width;
 			prevScreenHeight = Screen.height;
-			FilterVisualization.DrawCircle(m_filterOutputTexture, m_filterOutputTexture.width/2, m_filterOutputTexture.height/2, 100, Color.yellow);
+			fv.DrawCircle();
 		}
 
 		//AA: Draw the writeable area
-		m_filterOutputTexture.Apply();
-		GUI.DrawTexture(new Rect(filterOutputLocX , filterOutputLocY, m_filterOutputTexture.width, m_filterOutputTexture.height), m_filterOutputTexture);
+		fv.m_filterOutputTexture.Apply();
+		GUI.DrawTexture(new Rect(fv.filterOutputLocX , fv.filterOutputLocY, fv.m_filterOutputTexture.width, fv.m_filterOutputTexture.height), fv.m_filterOutputTexture);
 		
 		
 		// Cursor
@@ -1090,47 +1078,5 @@ public class FubiUnity : MonoBehaviour
     }
 	
 	
-	// AA: Code for drawing lines from: http://wiki.unity3d.com/index.php?title=DrawLine
-	// http://wiki.unity3d.com/index.php?title=TextureDrawLine
-	void DrawLine(Texture2D tex, int x0, int y0, int x1, int y1, Color col)
-	{
-	 	int dy = (int)(y1-y0);
-		int dx = (int)(x1-x0);
-	 	int stepx, stepy;
-	 
-		if (dy < 0) {dy = -dy; stepy = -1;}
-		else {stepy = 1;}
-		if (dx < 0) {dx = -dx; stepx = -1;}
-		else {stepx = 1;}
-		dy <<= 1;
-		dx <<= 1;
-	 
-		float fraction = 0;
-	 
-		tex.SetPixel(x0, y0, col);
-		if (dx > dy) {
-			fraction = dy - (dx >> 1);
-			while (Mathf.Abs(x0 - x1) > 1) {
-				if (fraction >= 0) {
-					y0 += stepy;
-					fraction -= dx;
-				}
-				x0 += stepx;
-				fraction += dy;
-				tex.SetPixel(x0, y0, col);
-			}
-		}
-		else {
-			fraction = dx - (dy >> 1);
-			while (Mathf.Abs(y0 - y1) > 1) {
-				if (fraction >= 0) {
-					x0 += stepx;
-					fraction -= dy;
-				}
-				y0 += stepy;
-				fraction += dx;
-				tex.SetPixel(x0, y0, col);
-			}
-		}
-	}
+	
 }
