@@ -23,7 +23,7 @@ public class SampleGUI : MonoBehaviour
 
 	void OnGUI ()
 	{
-		GUI.skin = guiskin;
+		//GUI.skin = guiskin;
 		
 		float screenH8th = Screen.height / 8.0f;
 		float screenH4th = Screen.height / 4.0f;

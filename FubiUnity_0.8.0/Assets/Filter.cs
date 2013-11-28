@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class Filter {
 // Author: AA
@@ -10,11 +11,32 @@ public class Filter {
 	Vector3 [] relativeJointHistory;	// To keep history of relative joint, could be shoulder or elbow number of previous values of 
 	float [] weights;
 	
+	Vector2 [] jointsVectorOutputs;		// To keep history of outputs of filter 
+	Vector3 [] jointOutputs;			// "
+	Vector3 [] relativeJointOutputs;	// "
+
 	// In case we want to control which filters are used
 	bool bUseWMA = true;
 	bool bUseTaylorSeries = true;
 	bool bUseKalman = true;
 	
+	public enum FILTER_NAME 
+	{
+		SIMPLE_AVG,
+		MOVING_AVG,
+		DOUBLE_MOVING_AVG,
+		EXP_SMOOTHING,
+		DOUBLE_EXP_SMOOTHING,
+		ADAPTIVE_DOUBLE_EXP_SMOOTHING,
+		TAYLOR_SERIES,
+		MEDIAN,
+		JITTER_REMOVAL,
+		COMBINATION1,	// Predefined combinations of filters
+		COMBINATION2,
+		NONE
+	};		
+	public FILTER_NAME name;
+
 	public enum JOINT_TYPE 
 	{
 		VECTOR,
@@ -22,11 +44,12 @@ public class Filter {
 		RELATIVEJOINT
 	};		
 	
-	int numHistory = 10;			// Length of history to keep recommended value = 3, greater than this causes too much latency
+	public int numHistory = 10;			// Length of history to keep recommended value = 3, greater than this causes too much latency
 	int jointIndex = 0;				// Indices into joint and relative joint histories
 	int relativeJointIndex = 0;
 	float highestWeight = 0.7f;
 	// TODO: This class must be responsible for maintaining logs of joint filtered and unfiltered data for comparison
+	 
 	
 	// Keep history of previous ten values
 	/// <summary>
@@ -37,7 +60,10 @@ public class Filter {
 		relativeJointHistory = new Vector3 [numHistory];
 		jointsVectorHistory = new Vector2 [numHistory];
 		weights = new float [numHistory];
-		
+		name = FILTER_NAME.MOVING_AVG;
+//List<Vector2> myvec;
+//		myvec.Sort ();
+//		myvec.RemoveAt (myvec.Count)
 		float tempWeight = highestWeight;
 		float sumWeights = 0f;
 		
@@ -97,8 +123,28 @@ public class Filter {
 	private Vector3 applyFilter(Vector3 [] array, JOINT_TYPE jointType) {
 		
 		Vector3 sum = Vector3.zero;
-		for (int i = 0; i < numHistory; i++) {
-			sum = sum + array[i]*weights[i];
+
+		switch (name) {
+
+		// Simplest joint filter, where the filter output is the average of N recent inputs
+		case FILTER_NAME.SIMPLE_AVG:
+			
+			for (int i = 0; i < numHistory; i++) {
+				sum = sum + array[i];
+			}
+			sum/=numHistory;
+			break;
+
+		// Moving average (MA) filters are a special case of ARMA filters where the auto regressive term is zero
+		case FILTER_NAME.MOVING_AVG:
+			
+			for (int i = 0; i < numHistory; i++) {
+				sum = sum + array[i]*weights[i];
+			}
+			break;
+			
+		default:
+		break;
 		}
 	
 		return sum;

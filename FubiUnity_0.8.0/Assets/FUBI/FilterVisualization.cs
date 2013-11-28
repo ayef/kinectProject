@@ -1,10 +1,12 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 // AA: This class handles to all the visualizations for the filter
-public class FilterVisualization  {
+public class FilterVisualization {
 	
-	public Texture2D m_filterOutputTexture;	// Texture used for drawing the filter outputs
+	public Texture2D m_baseScreen;	// Display a shape for the user to follow
+	public List<Texture2D> m_filterOutputTexture;	// Texture used for drawing the filter outputs
 	public int [] filterOutputIndices;		// Used in case of multiple filters
 	public int filterOutputLocX = Screen.width/3;	// Coordinates of top left corner of filter output texture
 	public int filterOutputLocY = 10;					// 
@@ -16,20 +18,43 @@ public class FilterVisualization  {
 	
 	Color [][] pens;				// Colors for colouring the different filter outputs
 
-	public void SetPixels(Vector2 absPosition) 
+	public void SetPixels(Vector2 absPosition, int filterNumber) 
 	{
-		m_filterOutputTexture.SetPixels((int)( absPosition.x), (int)((filterOutputHeight - absPosition.y) ), 2, 2, pens[1] );
+		
+		m_filterOutputTexture[filterNumber].SetPixels((int)( absPosition.x), (int)((filterOutputHeight - absPosition.y) ), 2, 2, pens[filterNumber] );
+			//m_filterOutputTexture[i].SetPixels((int)( absPosition.x), (int)((filterOutputHeight - absPosition.y) ), 2, 2, pens[1] );
+		//m_filterOutputTexture.SetPixels((int)( absPosition.x), (int)((filterOutputHeight - absPosition.y) ), 2, 2, pens[1] );
 		
 	}
 	
+	// Add txtures for displaying each filter
+	public void AddFilterDisplayTexture()
+	{
+		Texture2D layer = new Texture2D(filterOutputWidth , filterOutputHeight);
+		Color [] transparency = new Color [ filterOutputWidth * filterOutputHeight];
+		Color c = new Color(0.2F, 0.3F, 0.4F, 0.5F);
+		for(int i = 0; i< filterOutputWidth * filterOutputHeight; i++) {
+			transparency[i] = Color.clear;
+		}
+		layer.SetPixels(transparency);
+		m_filterOutputTexture.Add(layer);
+	}
+	
+	// Remove all of the filter display layers except the base layer
+	public void Clear() 
+	{
+		for (int i = 1; i < m_filterOutputTexture.Count ; i++) {
+				m_filterOutputTexture.RemoveAt(i);
+		}
+	}
 	public FilterVisualization () 
 	{
 		Color[] colors = new Color[numPens];
-		colors[0] = Color.blue;
+		colors[0] = Color.green;
 		colors[1] = Color.red;
-		colors[2] = Color.green;
-		colors[3] = Color.magenta;
-		colors[4] = Color.black;
+		colors[2] = Color.blue;
+		colors[3] = Color.black;
+		colors[4] = Color.magenta;
 		
 		pens = new Color[numPens][];
 		
@@ -37,6 +62,9 @@ public class FilterVisualization  {
 			pens[i] = new Color[4] ;
 			pens[i][0] = pens[i][1] = pens[i][2] = pens[i][3] = colors[i];
 		}
+		m_filterOutputTexture = new List<Texture2D> ();
+		m_baseScreen = new Texture2D(filterOutputWidth , filterOutputHeight);
+		m_filterOutputTexture.Add(m_baseScreen);
 	}
 
 	//AA: 
@@ -44,17 +72,27 @@ public class FilterVisualization  {
 	{
 		filterOutputWidth = Screen.width - filterOutputLocX - borderWidth ;
 		filterOutputHeight = Screen.height - filterOutputLocY - borderWidth;
+
+		Color [] transparency = new Color [ filterOutputWidth * filterOutputHeight];
+		Color c = new Color(0.2F, 0.3F, 0.4F, 0.5F);
+		for(int i = 0; i< filterOutputWidth * filterOutputHeight; i++) {
+			transparency[i] = Color.clear;
+		}
 		
-		if( m_filterOutputTexture == null)
-			m_filterOutputTexture = new Texture2D(filterOutputWidth , filterOutputHeight);
-		else
-			m_filterOutputTexture.Resize (filterOutputWidth , filterOutputHeight);
+		for (int i = 0; i < m_filterOutputTexture.Count ; i++) {
+			if( m_filterOutputTexture[i] == null)
+				m_filterOutputTexture[i] = new Texture2D(filterOutputWidth , filterOutputHeight);
+			else
+				m_filterOutputTexture[i].Resize (filterOutputWidth , filterOutputHeight);
+			
+			if(i>0)
+				m_filterOutputTexture[i].SetPixels(transparency);
+		}
 	}
 	
 	public void DrawCircle()
 	{
-		DrawCircle(m_filterOutputTexture, m_filterOutputTexture.width/2, m_filterOutputTexture.height/2, (int)(m_filterOutputTexture.width*0.25f), Color.yellow);
-		Debug.Log("Circle radius: " +(m_filterOutputTexture.height/m_filterOutputTexture.width)*100 );
+		DrawCircle(m_filterOutputTexture[0], m_filterOutputTexture[0].width/2, m_filterOutputTexture[0].height/2, (int)(m_filterOutputTexture[0].width*0.25f), Color.yellow);
 	}
 	
 	// AA: circle code from http://wiki.unity3d.com/index.php?title=TextureDrawCircle
@@ -127,13 +165,11 @@ public class FilterVisualization  {
 		}
 	}
 	
-	// Use this for initialization
-	void Start () {
-	
+	// Apply changes to filter texture
+	public void Apply () {
+		for(int i = 0; i < m_filterOutputTexture.Count; i++) {
+			m_filterOutputTexture[i].Apply();
+		}
 	}
 	
-	// Update is called once per frame
-	void Update () {
-	
-	}
 }

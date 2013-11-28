@@ -17,10 +17,16 @@ public class FubiUnity : MonoBehaviour
 	Vector2 m_previousAbsPixelPosition = new Vector2(0, 0);	// GUI coordinate space coordinates for some previous value of the cursor poistion
 
 	//AA: Variables for the filter menu checkboxes (Called 'toggles' in Unity)
-	bool m_bUseSmoothingFilter = true;
+	bool m_bUseSimpleAverage = true;
+	bool m_bUseMovingAverage = true;
+	bool m_bUseSimpleAverage5 = true;
+	
+	int m_principalCursor = 1;	// Which filter to associatethe cursor with
+	bool m_firstExecution = false; // Controls adding of textures for each filter
 	
 	//AA: Variables for the Filter Visualization display
 	FilterVisualization fv = null;
+	FilterManager fm = null;
 	
 	// To check if user has changed window size
 	private int prevScreenWidth = Screen.width;
@@ -40,7 +46,8 @@ public class FubiUnity : MonoBehaviour
 
     // Cursor control properties
     public Texture2D m_defaultCursor;
-    public float m_cursorScale = 0.15f;
+    public Texture2D m_defaultMouseCursor;
+    public float m_cursorScale = 0.1f;
 
 	// AA: fubi unused variables
 //	// Swipe gui elements
@@ -128,9 +135,12 @@ public class FubiUnity : MonoBehaviour
         //AA: Filter visalization related initializations 
 		filter = new Filter();
 		fv = new FilterVisualization();
+		fm = new FilterManager();
 		fv.Initialise();
 		fv.DrawCircle();
 		
+		LoadFilters();
+
 		// First set instance so Fubi.release will not be called while destroying old objects
         instance = this;
         // Remain this instance active until new one is created
@@ -142,15 +152,7 @@ public class FubiUnity : MonoBehaviour
         {          
             Destroy(((FubiUnity)objects[0]));
         }
-// AA: delete, we don't need gestures
-//        // Load gesture symbols (might be specific to that scene)
-//		for (int i=0; i < m_gestureSymbols.Length; ++i)
-//		{
-//			if (m_gestureSymbols[i].Length == 1)
-//				m_gestureSymbolDict.Add(m_gestureSymbols[i][0].name, m_gestureSymbols[i]);
-//			else if (m_gestureSymbols[i].Length >= 1)
-//				m_gestureSymbolDict.Add(m_gestureSymbols[i][0].name.Substring(0, m_gestureSymbols[i][0].name.Length-1), m_gestureSymbols[i]);
-//		}
+
 
         m_lastMouseClick = 0;
         m_lastGesture = 0;
@@ -219,107 +221,7 @@ public class FubiUnity : MonoBehaviour
                 Debug.Log("Fubi: loading mouse control recognizers failed!");
         }
 
-//AA: we don't need swipe code
-//		// Recognizer for activating the swipe menu
-//        m_handToFrontRecognizer = Fubi.addJointRelationRecognizer(FubiUtils.SkeletonJoint.RIGHT_HAND,
-//                    FubiUtils.SkeletonJoint.RIGHT_SHOULDER, -200.0f, -200.0f, float.MinValue, 300.0f, 300.0f, -250.0f);
-//        // Swipe recognizers for 1 to 12 options in a swipe menu
-//        m_swipeRecognizers = new string[12][];
-//        m_lastSwipeRecognitions = new double[12][];
-//        for (uint i = 0; i < 12; ++i)
-//        {
-//            uint len = i + 1;
-//            float rotAdd = 2.0f * Mathf.PI / len;
-//            float maxAngleDiff = Mathf.Min(45.0f, 360.0f / len);
-//            m_swipeRecognizers[i] = new string[len];
-//            m_lastSwipeRecognitions[i] = new double[len];
-//            for (uint j = 0; j < len; ++j)
-//            {
-//                float currRot = j * rotAdd;
-//                if (i < 2)
-//                    currRot += Mathf.PI / 2.0f;
-//                float dirX = Mathf.Sin(currRot);
-//                float dirY = Mathf.Cos(currRot);
-//                m_lastSwipeRecognitions[i][j] = 0;
-//                uint movRecIndex = Fubi.addLinearMovementRecognizer(
-//                    FubiUtils.SkeletonJoint.RIGHT_HAND,
-//                    FubiUtils.SkeletonJoint.RIGHT_SHOULDER,
-//                    dirX, dirY, 0, 250.0f, float.MaxValue, false, -1, null, maxAngleDiff);
-//                uint movPosRecIndex = Fubi.addJointRelationRecognizer(
-//                    FubiUtils.SkeletonJoint.RIGHT_HAND,
-//                    FubiUtils.SkeletonJoint.RIGHT_SHOULDER,
-//                    (dirX < -0.05f) ? float.MinValue : -200.0f,
-//                    (dirY < -0.05f) ? float.MinValue : -200.0f,
-//                    float.MinValue,
-//                    (dirX > 0.05f) ? float.MaxValue : 300.0f,
-//                    (dirY > 0.05f) ? float.MaxValue : 300.0f,
-//                    -125.0f);
-//                uint stopRecIndex = Fubi.addJointRelationRecognizer(
-//                    FubiUtils.SkeletonJoint.RIGHT_HAND,
-//                    FubiUtils.SkeletonJoint.RIGHT_SHOULDER,
-//                    (dirX > 0.05f) ? (150.0f * dirX) : float.MinValue,
-//                    (dirY > 0.05f) ? (100.0f * dirY) : float.MinValue,
-//                    float.MinValue,
-//                    (dirX < -0.05f) ? (100.0f * dirX) : float.MaxValue,
-//                    (dirY < -0.05f) ? (150.0f * dirY) : float.MaxValue,
-//                    float.MaxValue);
-//                string name = string.Format("swipeRec{0}", movRecIndex);
-//                string combinationDef = string.Format(m_swipeCombinationXMLTemplate, name, movRecIndex, movPosRecIndex, stopRecIndex);
-//                if (Fubi.addCombinationRecognizer(combinationDef))
-//                    m_swipeRecognizers[i][j] = name;
-//                else m_swipeRecognizers[i][j] = "";
-//            }
-//        }
-//        // Now for the left hand
-//        m_leftHandToFrontRecognizer = Fubi.addJointRelationRecognizer(FubiUtils.SkeletonJoint.LEFT_HAND,
-//                    FubiUtils.SkeletonJoint.LEFT_SHOULDER, -300.0f, -200.0f, float.MinValue, 200.0f, 300.0f, -250.0f);
-//        // Swipe recognizers for 1 to 12 options in a swipe menu
-//        m_leftSwipeRecognizers = new string[12][];
-//        m_lastLeftSwipeRecognitions = new double[12][];
-//        for (uint i = 0; i < 12; ++i)
-//        {
-//            uint len = i + 1;
-//            float rotAdd = 2.0f * Mathf.PI / len;
-//            float maxAngleDiff = Mathf.Min(45.0f, 360.0f / len);
-//            m_leftSwipeRecognizers[i] = new string[len];
-//            m_lastLeftSwipeRecognitions[i] = new double[len];
-//            for (uint j = 0; j < len; ++j)
-//            {
-//                float currRot = j * rotAdd;
-//                if (i < 2)
-//                    currRot += Mathf.PI / 2.0f;
-//                float dirX = Mathf.Sin(currRot);
-//                float dirY = Mathf.Cos(currRot);
-//                m_lastLeftSwipeRecognitions[i][j] = 0;
-//                uint movRecIndex = Fubi.addLinearMovementRecognizer(
-//                    FubiUtils.SkeletonJoint.LEFT_HAND,
-//                    FubiUtils.SkeletonJoint.LEFT_SHOULDER,
-//                    dirX, dirY, 0, 250.0f, float.MaxValue, false, -1, null, maxAngleDiff);
-//                uint movPosRecIndex = Fubi.addJointRelationRecognizer(
-//                    FubiUtils.SkeletonJoint.LEFT_HAND,
-//                    FubiUtils.SkeletonJoint.LEFT_SHOULDER,
-//                    (dirX < -0.05f) ? float.MinValue : -300.0f,
-//                    (dirY < -0.05f) ? float.MinValue : -200.0f,
-//                    float.MinValue,
-//                    (dirX > 0.05f) ? float.MaxValue : 200.0f,
-//                    (dirY > 0.05f) ? float.MaxValue : 300.0f,
-//                    -125.0f);
-//                uint stopRecIndex = Fubi.addJointRelationRecognizer(
-//                    FubiUtils.SkeletonJoint.LEFT_HAND,
-//                    FubiUtils.SkeletonJoint.LEFT_SHOULDER,
-//                    (dirX > 0.05f) ? (100.0f * dirX) : float.MinValue,
-//                    (dirY > 0.05f) ? (100.0f * dirY) : float.MinValue,
-//                    float.MinValue,
-//                    (dirX < -0.05f) ? (150.0f * dirX) : float.MaxValue,
-//                    (dirY < -0.05f) ? (150.0f * dirY) : float.MaxValue,
-//                    float.MaxValue);
-//                string name = string.Format("swipeLeftRec{0}", movRecIndex);
-//                string combinationDef = string.Format(m_swipeCombinationXMLTemplate, name, movRecIndex, movPosRecIndex, stopRecIndex);
-//                if (Fubi.addCombinationRecognizer(combinationDef))
-//                    m_leftSwipeRecognizers[i][j] = name;
-//                else m_leftSwipeRecognizers[i][j] = "";
-//            }
-//        }
+
     }
 
     // Update is called once per frame
@@ -384,36 +286,26 @@ public class FubiUnity : MonoBehaviour
 		}
     }
 
-    void MoveMouse(float mousePosX, float mousePosY, bool forceDisplay = false)
+    void MoveMouse(float mousePosX, float mousePosY, int i = 0)
     {
         // TODO change texture for dwell
         Texture2D cursorImg = m_defaultCursor;
-		Debug.Log ("In movemouse: mousePosX mousePosY " + mousePosX +" " + mousePosY );
+		//Debug.Log ("In movemouse: mousePosX mousePosY " + mousePosX +" " + mousePosY );
 
         m_cursorAspect = (float)cursorImg.width / (float)cursorImg.height;
-		float width = m_cursorScale * m_cursorAspect * (float)fv.m_filterOutputTexture.height;
-		float height = m_cursorScale * (float)fv.m_filterOutputTexture.height;
-		float x = mousePosX * (float)fv.m_filterOutputTexture.width - 0.5f*width;
-		float y = mousePosY * (float)fv.m_filterOutputTexture.height - 0.5f*height;
-		Debug.Log ("cursor x y " +  x+ " " + y);
-
-		Rect pos = new Rect(fv.filterOutputLocX + x, fv.filterOutputLocY + y, width, height);
-		GUI.depth = -3;
-        GUI.Label(pos, cursorImg);
-
-//AA: Old code for mapping active screen - can delete
-//		float width = m_cursorScale * m_cursorAspect * (float)Screen.height;
-//		float height = m_cursorScale * (float)Screen.height;
-//		float x = mousePosX * (float)Screen.width - 0.5f*width;
-//		float y = mousePosY * (float)Screen.height - 0.5f*height;
-//		Rect pos = new Rect(x, y, width, height);
-//		if ((m_buttonsDisplayed || forceDisplay) && m_disableFubi == false)
-//		{
-//			Debug.Log ("In movemouse: cursor width height " + width +" " + height + " x y " + x+ " " + y);
-//			GUI.depth = -3;
-//	        GUI.Label(pos, cursorImg);
-//			m_buttonsDisplayed = false;
-//		}
+		float width = m_cursorScale * m_cursorAspect * (float)fv.filterOutputHeight;
+		float height = m_cursorScale * (float)fv.filterOutputHeight;
+		float x = mousePosX * (float)fv.filterOutputWidth - 0.5f*width;
+		float y = mousePosY * (float)fv.filterOutputHeight - 0.5f*height;
+		//Debug.Log ("cursor x y " +  x+ " " + y);
+		if( i == m_principalCursor) 	// Display cursor for one of the filters only
+		{
+			Rect pos = new Rect(fv.filterOutputLocX + x, fv.filterOutputLocY + y, width, height);
+			GUI.depth = -3;
+	        GUI.Label(pos, cursorImg);
+			
+		}
+			
 		m_absPixelPosition.x = x;
 		m_absPixelPosition.y = y;
 
@@ -423,9 +315,9 @@ public class FubiUnity : MonoBehaviour
 	void MoveActualMouse(float mousePosX, float mousePosY, bool forceDisplay = false)
     {
         // TODO change texture for dwell
-        Texture2D cursorImg = m_defaultCursor;
+        Texture2D cursorImg = m_defaultMouseCursor;
         m_cursorAspect = (float)cursorImg.width / (float)cursorImg.height;
-		float width = m_cursorScale * m_cursorAspect * (float)fv.m_filterOutputTexture.height;
+		float width = m_cursorScale * m_cursorAspect * (float)fv.filterOutputHeight;
 		float height = m_cursorScale * (float)Screen.height;
 		float x = mousePosX * (float)Screen.width - 0.5f*width;
 		float y = mousePosY * (float)Screen.height - 0.5f*height;
@@ -437,21 +329,21 @@ public class FubiUnity : MonoBehaviour
     }
 	
 	//AA: Draw the filter output
-	void DrawFilterOutputs()
+	void DrawFilterOutputs(int i)
 	{
 		int factor =2;
-		if(InBounds(fv.m_filterOutputTexture , m_absPixelPosition ) )
+		if(InBounds(fv , m_absPixelPosition ) )
 		{
-	       	fv.SetPixels(m_absPixelPosition);
+	       	fv.SetPixels(m_absPixelPosition, i+1);	// 0 == write on base screen, that's why we add 1
 //			fv.m_filterOutputTexture.SetPixels((int)( m_absPixelPosition.x), (int)((fv.filterOutputHeight - m_absPixelPosition.y) ), 2, 2, bluePixels);
 		}
 		
 	}
 	
 	//AA: Checks whether position is inside the texture
-	bool InBounds(Texture2D texture , Vector2 position ) 
+	bool InBounds(FilterVisualization fVis , Vector2 position ) 
 	{
-		if(position.x < texture.width - fv.borderWidth && position.x >  fv.borderWidth && position.y < texture.height - fv.borderWidth && position.y >  fv.borderWidth ) 
+		if(position.x < fVis.filterOutputWidth - fVis.borderWidth && position.x >  fVis.borderWidth && position.y < fVis.filterOutputHeight - fVis.borderWidth && position.y >  fVis.borderWidth ) 
 			return true;
 		else
 			return false;
@@ -476,8 +368,45 @@ public class FubiUnity : MonoBehaviour
         m_depthMapTexture.SetPixels(m_depthMapPixels);
         m_depthMapTexture.Apply();
     }
+	
+	//AA: Load the filters according to GUI selections
+	void LoadFilters() 
+	{
+		fm.Clear();
+		
 
-    // Called for rendering the gui
+		if(m_bUseSimpleAverage == true) {
+			Filter f = new Filter();
+			f.name = Filter.FILTER_NAME.SIMPLE_AVG;
+			f.numHistory = 10;		// Number of values to consider in mean
+			fm.AddFilter (f);
+			if (m_firstExecution == false)
+				fv.AddFilterDisplayTexture();
+		}
+
+		if(m_bUseMovingAverage == true) {
+			Filter f = new Filter();
+			f.name = Filter.FILTER_NAME.MOVING_AVG;
+			f.numHistory = 10;		// Number of values to consider in moving average
+			fm.AddFilter (f);
+			if (m_firstExecution == false)
+				fv.AddFilterDisplayTexture();
+		}
+	
+		if(m_bUseSimpleAverage5 == true) {
+			Filter f = new Filter();
+			f.name = Filter.FILTER_NAME.SIMPLE_AVG;
+			f.numHistory = 5;		// Number of values to consider in mean
+			fm.AddFilter (f);
+			if (m_firstExecution == false)
+				fv.AddFilterDisplayTexture();
+		}
+
+		m_firstExecution = true;
+
+	}
+
+	// Called for rendering the gui
     void OnGUI()
     {
 		// AA: Position the depth image so the user can see the kinect output
@@ -491,16 +420,29 @@ public class FubiUnity : MonoBehaviour
 		
 		//AA: add the GUI elements
 		
-		GUI.Box (new Rect(25, 25, 200, 200) , "Filter Menu");
+		GUI.Box (new Rect(25, 25, 200, 250) , "Filter Menu");
 		
-		m_bUseSmoothingFilter = GUI.Toggle(new Rect(35,50,150,30), m_bUseSmoothingFilter, " Use Smoothing Filter");
-		//m_bUseSmoothingFilter = GUI.Toggle(new Rect(35,50,150,30), m_bUseSmoothingFilter, " Use Smoothing Filter10");
-		if( GUI.Button(new Rect(35, 100,150,30), "Clear"))
+		m_bUseSimpleAverage = GUI.Toggle(new Rect(35,50,150,30), m_bUseSimpleAverage, " Use Simple Average 10");
+		m_bUseMovingAverage = GUI.Toggle(new Rect(35,90,150,30), m_bUseMovingAverage, " Use Moving Average");
+		m_bUseSimpleAverage5 = GUI.Toggle(new Rect(35,130,150,30), m_bUseSimpleAverage5, " Use Simple Average 5");
+		
+		string[] selStrings = new string[] {"1", "2", "3", "4"};	
+		GUI.SelectionGrid(new Rect (5,5, 20, 150), 0, selStrings, 1);
+		
+		if( GUI.Button(new Rect(35, 170,150,30), "Clear"))
 		{
 			WriteableAreaResize();
 			fv.DrawCircle();
-			
 		}
+		
+		// If some button has been pressed
+		if(GUI.changed) 
+		{
+			LoadFilters();
+			if(fm.filters.Count == 1)
+				m_principalCursor = 0;
+		}
+		
 		if( prevScreenWidth != Screen.width || prevScreenHeight != Screen.height) 
 		{
 			// Resize writeable area, redraw the circle
@@ -511,9 +453,11 @@ public class FubiUnity : MonoBehaviour
 		}
 
 		//AA: Draw the writeable area
-		fv.m_filterOutputTexture.Apply();
-		GUI.DrawTexture(new Rect(fv.filterOutputLocX , fv.filterOutputLocY, fv.m_filterOutputTexture.width, fv.m_filterOutputTexture.height), fv.m_filterOutputTexture);
-		
+		fv.Apply();
+		for (int i = 0; i < fv.m_filterOutputTexture.Count ; i++) {
+			GUI.DrawTexture(new Rect(fv.filterOutputLocX , fv.filterOutputLocY, fv.filterOutputWidth, fv.filterOutputHeight), fv.m_filterOutputTexture[i]);
+		}
+			
 		
 		// Cursor
 		m_gotNewFubiCoordinates = false;
@@ -532,11 +476,6 @@ public class FubiUnity : MonoBehaviour
 					m_lastCalibrationSucceded = calibrateCursorMapping(m_currentUser);
                 FubiUtils.SkeletonJoint joint = FubiUtils.SkeletonJoint.RIGHT_HAND;
                 FubiUtils.SkeletonJoint relJoint = FubiUtils.SkeletonJoint.RIGHT_SHOULDER;
-                //if (leftHand)
-                //{
-                //    joint = FubiUtils.SkeletonJoint.LEFT_HAND;
-                //    relJoint = FubiUtils.SkeletonJoint.LEFT_SHOULDER;
-                //}
 			
 				// Get hand and shoulder position and check their confidence
                 double timeStamp;
@@ -548,104 +487,88 @@ public class FubiUnity : MonoBehaviour
                     Fubi.getCurrentSkeletonJointPosition(userID, relJoint, out relX, out relY, out relZ, out confidence, out timeStamp);
 					if (confidence > 0.5f)
                     {
-						
 						// AA: Filtering should happen here for the hand and relative joints separately
 						// If true, use the smoothed joints for calculating screen coordinates
-
-						if(m_bUseJointFiltering) {
-							Vector3 handPos = filter.Update(new Vector3(handX, handY, handZ), Filter.JOINT_TYPE.JOINT);
-							Vector3 relJointPos = filter.Update(new Vector3(relX, relY, relZ), Filter.JOINT_TYPE.RELATIVEJOINT);
-//							Debug.Log ("hand x y z " + handX + " " + handY + " " + handZ);
-//							Debug.Log ("handpos x y z " + handPos.x + " " + handPos.y + " " + handPos.z);
-							handZ = handPos.z;
-							handY = handPos.y;
-							handX = handPos.x;
-							
-							relZ = relJointPos.z;
-							relY = relJointPos.y;
-							relX = relJointPos.x;
-							
-						}
-						// AA: End  
+						fm.UpdateJointFilters(new Vector3(handX, handY, handZ), new Vector3(relX, relY, relZ));
 						
-						// Take relative coordinates
-						float zDiff = handZ - relZ;
-						float yDiff = handY - relY;
-						float xDiff = handX - relX;
-						// Check if hand is enough in front of shoulder
-						if ((yDiff >0 && zDiff < -150.0f) || (Mathf.Abs(xDiff) > 150.0f && zDiff < -175.0f) || zDiff < -225.0f)
+						for(int i = 0 ; i< fm.filters.Count ; i++ )
 						{
-							// Now get the possible cursor position                       
+							if(m_bUseJointFiltering) {
+								Vector3 handPos = fm.joints[i]; // filter.Update(new Vector3(handX, handY, handZ), Filter.JOINT_TYPE.JOINT);
+								Vector3 relJointPos = fm.relativeJoints[i]; //filter.Update(new Vector3(relX, relY, relZ), Filter.JOINT_TYPE.RELATIVEJOINT);
+								Debug.Log ("hand " + handPos + " relJoint " + relJointPos);
+								handZ = handPos.z;
+								handY = handPos.y;
+								handX = handPos.x;
+								
+								relZ = relJointPos.z;
+								relY = relJointPos.y;
+								relX = relJointPos.x;
+								m_relativeCursorPosition = fm.relativeCursorPosition[i];
+								
+							}
+							// AA: End  
+							
+							// Take relative coordinates
+							float zDiff = handZ - relZ;
+							float yDiff = handY - relY;
+							float xDiff = handX - relX;
+							// Check if hand is enough in front of shoulder
+							if ((yDiff >0 && zDiff < -150.0f) || (Mathf.Abs(xDiff) > 150.0f && zDiff < -175.0f) || zDiff < -225.0f)
+							{
+								// Now get the possible cursor position                       
+		                        // Convert to screen coordinates
+		                        float newX, newY;
+		                        float mapX = m_mapping.x;
+		                        newX = (xDiff - mapX) / m_mapping.width;
+		                        newY = (m_mapping.y - yDiff) / m_mapping.height; // Flip y for the screen coordinates
 	
-	                        // Convert to screen coordinates
-	                        float newX, newY;
-	                        float mapX = m_mapping.x;
-	                        //if (leftHand)
-	                        //    // Mirror x  area for left hand
-	                        //    mapX = -m_mapping.x - m_mapping.width;
-	                        newX = (xDiff - mapX) / m_mapping.width;
-	                        newY = (m_mapping.y - yDiff) / m_mapping.height; // Flip y for the screen coordinates
-
-	                        // Filtering
-	                        // New coordinate is weighted more if it represents a longer distance change
-	                        // This should reduce the lagging of the cursor on higher distances, but still filter out small jittering
-	                        float changeX = newX - m_relativeCursorPosition.x;
-	                        float changeY = newY - m_relativeCursorPosition.y;
-	
-	                        if (changeX != 0 || changeY != 0 && timeStamp != m_timeStamp)
-	                        {
-	                            float changeLength = Mathf.Sqrt(changeX * changeX + changeY * changeY);
-	                            float filterFactor = changeLength; //Mathf.Sqrt(changeLength);
-	                            if (filterFactor > 1.0f) {
-									 filterFactor = 1.0f;
-//									Debug.Log ("filterfactor is 1");
-								}
-								else{
-									//Debug.Log ("filterfactor is " + filterFactor);
+		                        // Filtering
+								// New coordinate is weighted more if it represents a longer distance change
+		                        // This should reduce the lagging of the cursor on higher distances, but still filter out small jittering
+		                        float changeX = newX - m_relativeCursorPosition.x;
+		                        float changeY = newY - m_relativeCursorPosition.y;
+		
+		                        if (changeX != 0 || changeY != 0 && timeStamp != m_timeStamp)
+		                        {
+		                            float changeLength = Mathf.Sqrt(changeX * changeX + changeY * changeY);
+		                            float filterFactor = changeLength; //Mathf.Sqrt(changeLength);
+		                            if (filterFactor > 1.0f) {
+										 filterFactor = 1.0f;
+									}
+		
+		                            // Apply the tracking to the current position with the given filter factor
+									// AA: Filtering should happen here for joint-to-relativejoint (VECTOR) filtering
+									// AA: filtering code
 									
-								}
-								
-	                            
-	
-	                            // Apply the tracking to the current position with the given filter factor
-								// AA: Filtering should happen here for joint-to-relativejoint (VECTOR) filtering
-								// AA: filtering code
-								
-								Vector2 tempNew = new Vector2(newX,newY);
-								
-								// If true, use the calculated factor for smoothing, else just use the new
-								if(m_bUseVectorFiltering) {
-									//filterFactor
-									m_relativeCursorPosition = filter.Update(m_relativeCursorPosition, tempNew, filterFactor);
-								}
-								else {	// Just give equal weight to both
-									m_relativeCursorPosition = filter.Update(m_relativeCursorPosition, tempNew, 0.5f);
+									Vector2 tempNew = new Vector2(newX,newY);
 									
-								}
-								
-	                            
-								
-	                            m_timeStamp = timeStamp;
-	
-	                            // Send it, but only if it is more or less within the screen
-								if (m_relativeCursorPosition.x > -0.1f && m_relativeCursorPosition.x < 1.1f
-									&& m_relativeCursorPosition.y > -0.1f && m_relativeCursorPosition.y < 1.1f)
-								{
-									// AA: Disable snapping
-//									if (!m_disableSnapping && m_snappingCoords.x >=0 && m_snappingCoords.y >= 0)
-//									{
-//										MoveMouse(m_snappingCoords.x, m_snappingCoords.y);
-//										m_snappingCoords.x = -1;
-//										m_snappingCoords.y = -1;
-//									}
-//									else
+									// If true, use the calculated factor for smoothing, else just use the new
+									if(m_bUseVectorFiltering) {
+										m_relativeCursorPosition = filter.Update(m_relativeCursorPosition, tempNew, filterFactor);
+									}
+									else {	// Just give equal weight to both
+										m_relativeCursorPosition = filter.Update(m_relativeCursorPosition, tempNew, 0.5f);
+										
+									}
 									
-									MoveMouse(m_relativeCursorPosition.x, m_relativeCursorPosition.y);
-									DrawFilterOutputs();
-									m_gotNewFubiCoordinates = true;
-									m_lastCursorChangeDoneByFubi = true;
-								}
-	                        }
+									// AA: Calculate all filters
+									// fm.UpdateVectorFilters(m_relativeCursorPosition, tempNew, filterFactor);
+									
+		                            m_timeStamp = timeStamp;
+		
+		                            // Send it, but only if it is more or less within the screen
+									if (m_relativeCursorPosition.x > -0.1f && m_relativeCursorPosition.x < 1.1f
+										&& m_relativeCursorPosition.y > -0.1f && m_relativeCursorPosition.y < 1.1f)
+									{
+										MoveMouse(m_relativeCursorPosition.x, m_relativeCursorPosition.y, i);
+										fm.relativeCursorPosition[i] = m_relativeCursorPosition;
+										DrawFilterOutputs(i);
+										m_gotNewFubiCoordinates = true;
+										m_lastCursorChangeDoneByFubi = true;
+									}
+		                        }
+							}
 						}
                     }
                 }
@@ -744,32 +667,7 @@ public class FubiUnity : MonoBehaviour
         }
         return click;
     }
-// AA: FUBI button not required in this demo
-//	static public bool FubiButton(Rect r, string text, GUIStyle style)
-//	{
-//		bool cursorDisabled = instance.m_disableCursorWithGestures && instance.m_gesturesDisplayedLastFrame;
-//		
-//		instance.m_buttonsDisplayed = !cursorDisabled;
-//		GUI.depth = -2;
-//		bool click = false;
-//		Rect checkRect = new Rect();
-//		checkRect.x = r.x - r.height;
-//		checkRect.y = r.y - r.height;
-//		checkRect.width = r.width + 2*r.height;
-//		checkRect.height = r.height + 2*r.height;
-//		if (!cursorDisabled && rectContainsCursor(checkRect))
-//		{
-//			instance.m_snappingCoords = new Vector2(r.center.x / Screen.width, r.center.y / Screen.height);
-//			GUI.Button(r, text, style.name+"-hover");
-//            if (clickRecognized())
-//                click = true;            
-//		}
-//		else
-//		{
-//			click = GUI.Button(r, text, style);
-//		}
-//		return click;
-//	}
+
 
 // AA: Removing this function disables click functionality so have not commented it out
 	static public bool FubiGesture(Rect r, string name, GUIStyle style)
