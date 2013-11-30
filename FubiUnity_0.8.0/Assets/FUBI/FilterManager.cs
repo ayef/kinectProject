@@ -85,6 +85,10 @@ public class FilterManager {
 	public void Clear() 
 	{
 		filters.Clear ();
+		relativeCursorPosition.Clear();
+		prevAbsPixelPosition.Clear();
+		absPixelPosition.Clear();
+		colors.Clear ();
 		
 	}
 }

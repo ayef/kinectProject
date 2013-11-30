@@ -18,8 +18,11 @@ public class FubiUnity : MonoBehaviour
 
 	//AA: Variables for the filter menu checkboxes (Called 'toggles' in Unity)
 	bool m_bUseSimpleAverage = true;
-	bool m_bUseMovingAverage = true;
-	bool m_bUseSimpleAverage5 = true;
+	bool m_bUseMovingAverage = false;
+	bool m_bUseSimpleAverage5 = false;
+	bool m_bDblMovingAverage = false;
+	bool m_bUseExpSmoothing = false;
+	bool m_bUseDblExpSmoothing = true;
 	
 	int m_principalCursor = 1;	// Which filter to associatethe cursor with
 	bool m_firstExecution = true; // Controls adding of textures for each filter
@@ -348,7 +351,7 @@ public class FubiUnity : MonoBehaviour
 		if(InBounds(fv , m_absPixelPosition ) )
 		{
 	       	fv.SetPixels(m_absPixelPosition, fm.colors[i]);
-			fv.DrawLine(0, (int) fm.prevAbsPixelPosition[i].x, (int) fm.prevAbsPixelPosition[i].y, (int)m_absPixelPosition.x, (int)m_absPixelPosition.y, Color.red);
+			fv.DrawLine(0, (int) fm.prevAbsPixelPosition[i].x, (int) fm.prevAbsPixelPosition[i].y, (int)m_absPixelPosition.x, (int)m_absPixelPosition.y, fm.colors[i]);
 		}
 		
 	}
@@ -386,6 +389,7 @@ public class FubiUnity : MonoBehaviour
 	void LoadFilters() 
 	{
 		fm.Clear();
+
 		m_previousAbsPixelPosition = m_absPixelPosition = Vector2.zero;
 
 		if(m_bUseSimpleAverage == true) {
@@ -400,8 +404,6 @@ public class FubiUnity : MonoBehaviour
 			f.name = Filter.FILTER_NAME.MOVING_AVG;
 			f.numHistory = 10;		// Number of values to consider in moving average
 			fm.AddFilter (f);
-//			if (m_firstExecution == false)
-//				fv.AddFilterDisplayTexture();
 		}
 	
 		if(m_bUseSimpleAverage5 == true) {
@@ -409,10 +411,28 @@ public class FubiUnity : MonoBehaviour
 			f.name = Filter.FILTER_NAME.SIMPLE_AVG;
 			f.numHistory = 5;		// Number of values to consider in mean
 			fm.AddFilter (f);
-//			if (m_firstExecution == false)
-//				fv.AddFilterDisplayTexture();
 		}
 
+		if(m_bDblMovingAverage == true) {
+			Filter f = new Filter();
+			f.name = Filter.FILTER_NAME.DOUBLE_MOVING_AVG;
+			f.numHistory = 5;		// Amount of history to keep
+			fm.AddFilter (f);
+		}
+
+		if(m_bUseExpSmoothing == true) {
+			Filter f = new Filter();
+			f.name = Filter.FILTER_NAME.EXP_SMOOTHING;
+			f.numHistory = 5;		// Amount of history to keep
+			fm.AddFilter (f);
+		}
+
+		if(m_bUseDblExpSmoothing == true) {
+			Filter f = new Filter();
+			f.name = Filter.FILTER_NAME.DOUBLE_EXP_SMOOTHING;
+			f.numHistory = 5;		// Amount of history to keep
+			fm.AddFilter (f);
+		}
 		
 	}
 	
@@ -433,37 +453,26 @@ public class FubiUnity : MonoBehaviour
 	        //GUI.DrawTexture(new Rect(Screen.width-m_xRes/m_factor, Screen.height-m_yRes/m_factor, m_xRes / m_factor, m_yRes / m_factor), m_depthMapTexture);
 		}
 		
+
+
 		//AA: add the GUI elements
 		
-		GUI.Box (new Rect(10, 25, 200, 250) , "Filter Menu");
-		
-		int count = 0;
+		GUI.Box (new Rect(10, 25, 200, 320) , "Filter Menu");
 
 		m_bUseSimpleAverage = GUI.Toggle(new Rect(45, 50,200,30), m_bUseSimpleAverage, " SIMPLE AVERAGE 10");
-		if(m_bUseSimpleAverage) 
-		{
-			GUI.Label (new Rect(15, 45, 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
-			count++;
-		}
 
 		m_bUseMovingAverage = GUI.Toggle(new Rect(45,90,200,30), m_bUseMovingAverage, " MOVING AVERAGE");
-		if(m_bUseMovingAverage) 
-		{
-			GUI.Label (new Rect(15, 85 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
-			count++;
-		}
 
 		m_bUseSimpleAverage5 = GUI.Toggle(new Rect(45,130,200,30), m_bUseSimpleAverage5, " SIMPLE AVERAGE 5");
-		if(m_bUseSimpleAverage5) 
-		{
-			GUI.Label (new Rect(15, 125 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
-			count++;
-		}
+
+		m_bDblMovingAverage = GUI.Toggle(new Rect(45,170,200,30), m_bDblMovingAverage, " DOUBLE MOV AVERAGE");
+
+		m_bUseExpSmoothing = GUI.Toggle(new Rect(45,210,200,30), m_bUseExpSmoothing, " EXP SMOOTHING");
+
+		m_bUseDblExpSmoothing = GUI.Toggle(new Rect(45,250,200,30), m_bUseDblExpSmoothing, " DOUBLE EXP SMOOTHING");
 		
-		//string[] selStrings = new string[] {"1", "2", "3", "4"};	
-		//GUI.SelectionGrid(new Rect (5,5, 20, 150), 0, selStrings, 1);
 		
-		if( GUI.Button(new Rect(35, 170,150,30), "Clear"))
+		if( GUI.Button(new Rect(35, 290,150,30), "Clear"))
 		{
 			WriteableAreaResize();
 			fv.DrawCircle();
@@ -477,8 +486,45 @@ public class FubiUnity : MonoBehaviour
 			if(fm.filters.Count == 1)
 				m_principalCursor = 0;
 
+		}					
+
+		int count = 0;
+		if(m_bUseSimpleAverage) 
+		{
+			GUI.Label (new Rect(15, 45, 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
 		}
-					
+		
+		if(m_bUseMovingAverage) 
+		{
+			GUI.Label (new Rect(15, 85 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
+		}
+
+		if(m_bUseSimpleAverage5) 
+		{
+			GUI.Label (new Rect(15, 125 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
+		}
+
+		if(m_bDblMovingAverage) 
+		{
+			GUI.Label (new Rect(15, 170 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
+		}
+
+		if(m_bUseExpSmoothing) 
+		{
+			GUI.Label (new Rect(15, 215 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
+		}
+		
+		if(m_bUseDblExpSmoothing) 
+		{
+			GUI.Label (new Rect(15, 260 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
+		}
+		
 		if( prevScreenWidth != Screen.width || prevScreenHeight != Screen.height) 
 		{
 			// Resize writeable area, redraw the circle
@@ -530,9 +576,10 @@ public class FubiUnity : MonoBehaviour
 						for(int i = 0 ; i< fm.filters.Count ; i++ )
 						{
 							if(m_bUseJointFiltering) {
+								Debug.Log ("Prehand " + new Vector3(handX, handY, handZ) + " relJoint " + new Vector3(relX, relY, relZ));
 								Vector3 handPos = fm.joints[i]; // filter.Update(new Vector3(handX, handY, handZ), Filter.JOINT_TYPE.JOINT);
 								Vector3 relJointPos = fm.relativeJoints[i]; //filter.Update(new Vector3(relX, relY, relZ), Filter.JOINT_TYPE.RELATIVEJOINT);
-								//Debug.Log ("hand " + handPos + " relJoint " + relJointPos);
+								Debug.Log ("hand " + handPos + " relJoint " + relJointPos);
 								handZ = handPos.z;
 								handY = handPos.y;
 								handX = handPos.x;
