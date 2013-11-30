@@ -23,8 +23,14 @@ public class FubiUnity : MonoBehaviour
 	bool m_bDblMovingAverage = false;
 	bool m_bUseExpSmoothing = false;
 	bool m_bUseDblExpSmoothing = true;
+	bool m_bUseMedian = false;
+	bool m_bUseNone = true;
+	bool m_bUseCombination1 = true;		// Hand joint filtered by simple avg, shoulder joint by median
+	bool m_bUseCombination2 = true;		// Hand joint filtered by double moving average, shoulder joint by median
+	bool m_bUseAdaptive = true;			// Adaptive double exponential
 	
-	int m_principalCursor = 1;	// Which filter to associatethe cursor with
+	
+	int m_principalCursor = 0;	// Which filter to associatethe cursor with
 	bool m_firstExecution = true; // Controls adding of textures for each filter
 	
 	//AA: Variables for the Filter Visualization display
@@ -317,7 +323,7 @@ public class FubiUnity : MonoBehaviour
 		if( i == m_principalCursor) 	// Display cursor for one of the filters only
 		{
 			Rect pos = new Rect(fv.filterOutputLocX + x, fv.filterOutputLocY + y, width, height);
-			GUI.depth = -3;
+			//GUI.depth = -3;
 	        GUI.Label(pos, cursorImg);
 			
 		}
@@ -430,17 +436,44 @@ public class FubiUnity : MonoBehaviour
 		if(m_bUseDblExpSmoothing == true) {
 			Filter f = new Filter();
 			f.name = Filter.FILTER_NAME.DOUBLE_EXP_SMOOTHING;
-			f.numHistory = 5;		// Amount of history to keep
+			f.numHistory = 10;		
+			fm.AddFilter (f);
+		}
+
+		if(m_bUseAdaptive == true) {
+			Filter f = new Filter();
+			f.name = Filter.FILTER_NAME.ADAPTIVE_DOUBLE_EXP_SMOOTHING;
 			fm.AddFilter (f);
 		}
 		
-	}
-	
-	void printColorKey(UnityEngine.GUI gui)
-	{
+		if(m_bUseMedian == true) {
+			Filter f = new Filter();
+			f.name = Filter.FILTER_NAME.MEDIAN;
+			f.numHistory = 10;		// Amount of history to keep
+			fm.AddFilter (f);
+		}
+		
+		if(m_bUseCombination1 == true) {
+			Filter f = new Filter();
+			f.name = Filter.FILTER_NAME.COMBINATION1;
+			fm.AddFilter (f);
+		}
+		
+		if(m_bUseCombination2 == true) {
+			Filter f = new Filter();
+			f.name = Filter.FILTER_NAME.COMBINATION2;
+			fm.AddFilter (f);
+		}
+
+		if(m_bUseNone == true) {
+			Filter f = new Filter();
+			f.name = Filter.FILTER_NAME.NONE;
+			fm.AddFilter (f);
+		}
+		
 		
 	}
-
+	
 	// Called for rendering the gui
     void OnGUI()
     {
@@ -457,7 +490,7 @@ public class FubiUnity : MonoBehaviour
 
 		//AA: add the GUI elements
 		
-		GUI.Box (new Rect(10, 25, 200, 320) , "Filter Menu");
+		GUI.Box (new Rect(10, 25, 200, Screen.height - 10) , "Filter Menu");
 
 		m_bUseSimpleAverage = GUI.Toggle(new Rect(45, 50,200,30), m_bUseSimpleAverage, " SIMPLE AVERAGE 10");
 
@@ -470,9 +503,19 @@ public class FubiUnity : MonoBehaviour
 		m_bUseExpSmoothing = GUI.Toggle(new Rect(45,210,200,30), m_bUseExpSmoothing, " EXP SMOOTHING");
 
 		m_bUseDblExpSmoothing = GUI.Toggle(new Rect(45,250,200,30), m_bUseDblExpSmoothing, " DOUBLE EXP SMOOTHING");
+
+		m_bUseAdaptive = GUI.Toggle(new Rect(45,290,200,30), m_bUseAdaptive, " ADAPTIVE DBL EXP");
+
+		m_bUseMedian = GUI.Toggle(new Rect(45,330,200,30), m_bUseMedian, " MEDIAN");
+		
+		m_bUseCombination1 = GUI.Toggle(new Rect(45,370,200,30), m_bUseCombination1, " SIMPLE AVG + Median");
+		
+		m_bUseCombination2 = GUI.Toggle(new Rect(45,410,200,30), m_bUseCombination2, " DBL MOV AVG + Median");
+		
+		m_bUseNone = GUI.Toggle(new Rect(45,450,200,30), m_bUseNone, " NONE");
 		
 		
-		if( GUI.Button(new Rect(35, 290,150,30), "Clear"))
+		if( GUI.Button(new Rect(35, Screen.height - 50,150,30), "Clear"))
 		{
 			WriteableAreaResize();
 			fv.DrawCircle();
@@ -509,19 +552,49 @@ public class FubiUnity : MonoBehaviour
 
 		if(m_bDblMovingAverage) 
 		{
-			GUI.Label (new Rect(15, 170 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15, 165 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 
 		if(m_bUseExpSmoothing) 
 		{
-			GUI.Label (new Rect(15, 215 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15, 205 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 		
 		if(m_bUseDblExpSmoothing) 
 		{
-			GUI.Label (new Rect(15, 260 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15, 245 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
+		}
+		
+		if(m_bUseAdaptive) 
+		{
+			GUI.Label (new Rect(15, 285 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
+		}
+		
+		if(m_bUseMedian) 
+		{
+			GUI.Label (new Rect(15, 325 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
+		}
+		
+		if(m_bUseCombination1) 
+		{
+			GUI.Label (new Rect(15, 365 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
+		}
+		
+		if(m_bUseCombination2) 
+		{
+			GUI.Label (new Rect(15, 405 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
+		}
+		
+		if(m_bUseNone) 
+		{
+			GUI.Label (new Rect(15, 445 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 		
@@ -531,7 +604,7 @@ public class FubiUnity : MonoBehaviour
 			WriteableAreaResize();
 			prevScreenWidth = Screen.width;
 			prevScreenHeight = Screen.height;
-			fv.DrawCircle();
+			fv.DrawCircle();	
 		}
 
 		//AA: Draw the writeable area
@@ -626,13 +699,13 @@ public class FubiUnity : MonoBehaviour
 									
 									Vector2 tempNew = new Vector2(newX,newY);
 									
+									fm.UpdateVectorFilters(m_relativeCursorPosition, tempNew, filterFactor);
 									// If true, use the calculated factor for smoothing, else just use the new
 									if(m_bUseVectorFiltering) {
-										m_relativeCursorPosition = filter.Update(m_relativeCursorPosition, tempNew, filterFactor);
+										m_relativeCursorPosition =  fm.vectors[i]; //filter.Update(m_relativeCursorPosition, tempNew, filterFactor);
 									}
 									else {	// Just give equal weight to both
 										m_relativeCursorPosition = filter.Update(m_relativeCursorPosition, tempNew, 0.5f);
-										
 									}
 									
 									// AA: Calculate all filters

@@ -13,7 +13,7 @@ public class FilterManager {
 	public List<Vector2> prevAbsPixelPosition;	// Store the previous absolute cursor position for each filter
 	public List<Vector2> absPixelPosition;	// Store the current absolute cursor position for each filter
 	public List<Color> colors;	// Store the color for this filter absolute cursor position for each filter
-	public int numColors = 10;
+	public int numColors = 13;
 
 	Color[] listOfColors;
 
@@ -36,7 +36,16 @@ public class FilterManager {
 		listOfColors[3] = Color.black;
 		listOfColors[4] = Color.cyan;
 		listOfColors[5] = Color.green;
-		for (int i = 0; i < 6; i++) {
+		listOfColors[6] = Color.black;
+		listOfColors[7] = Color.cyan;
+		listOfColors[8] = Color.green;
+		listOfColors[9] = Color.yellow;
+		listOfColors[10] = Color.blue;
+		listOfColors[11] = Color.red;
+		listOfColors[12] = Color.green;
+		listOfColors[12] = Color.cyan;
+
+		for (int i = 0; i < numColors; i++) {
 			Debug.Log("colors: " + listOfColors[i].ToString());
 		}
 
