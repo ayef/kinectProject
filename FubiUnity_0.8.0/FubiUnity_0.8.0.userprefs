@@ -2,11 +2,11 @@
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
   <MonoDevelop.Ide.Workbench ActiveDocument="Assets\FUBI\FilterManager.cs">
     <Files>
+      <File FileName="Assets\FUBI\FubiUnity.cs" Line="153" Column="2" />
+      <File FileName="Assets\FUBI\FilterVisualization.cs" Line="60" Column="1" />
       <File FileName="Assets\SampleGUI.cs" Line="26" Column="5" />
       <File FileName="Assets\Filter.cs" Line="89" Column="1" />
-      <File FileName="Assets\FUBI\FilterVisualization.cs" Line="81" Column="1" />
-      <File FileName="Assets\FUBI\FilterManager.cs" Line="29" Column="3" />
-      <File FileName="Assets\FUBI\FubiUnity.cs" Line="444" Column="4" />
+      <File FileName="Assets\FUBI\FilterManager.cs" Line="40" Column="53" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>

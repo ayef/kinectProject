@@ -22,7 +22,7 @@ public class FubiUnity : MonoBehaviour
 	bool m_bUseSimpleAverage5 = true;
 	
 	int m_principalCursor = 1;	// Which filter to associatethe cursor with
-	bool m_firstExecution = false; // Controls adding of textures for each filter
+	bool m_firstExecution = true; // Controls adding of textures for each filter
 	
 	//AA: Variables for the Filter Visualization display
 	FilterVisualization fv = null;
@@ -31,7 +31,10 @@ public class FubiUnity : MonoBehaviour
 	// To check if user has changed window size
 	private int prevScreenWidth = Screen.width;
 	private int prevScreenHeight = Screen.height;
-	
+
+	// To display colours against the filters
+	public Texture2D[] m_colorTextures;
+	private Dictionary<string, Texture2D > m_colorTextureDictionary;
 	// Global properties
 	public bool m_disableFubi = false;	
 	public bool m_disableTrackingImage = false;
@@ -138,9 +141,19 @@ public class FubiUnity : MonoBehaviour
 		fm = new FilterManager();
 		fv.Initialise();
 		fv.DrawCircle();
+
+		m_colorTextureDictionary = new Dictionary<string, Texture2D>();
+		foreach(Texture2D tex in m_colorTextures) 
+		{
+			Debug.Log(" tex name: " + tex.name);
+			m_colorTextureDictionary.Add (tex.name, tex);
+		}
 		
 		LoadFilters();
+		
 
+		
+		
 		// First set instance so Fubi.release will not be called while destroying old objects
         instance = this;
         // Remain this instance active until new one is created
@@ -305,7 +318,7 @@ public class FubiUnity : MonoBehaviour
 	        GUI.Label(pos, cursorImg);
 			
 		}
-			
+		m_previousAbsPixelPosition = fm.absPixelPosition[i];
 		m_absPixelPosition.x = x;
 		m_absPixelPosition.y = y;
 
@@ -331,11 +344,11 @@ public class FubiUnity : MonoBehaviour
 	//AA: Draw the filter output
 	void DrawFilterOutputs(int i)
 	{
-		int factor =2;
+		int factor = 2;
 		if(InBounds(fv , m_absPixelPosition ) )
 		{
-	       	fv.SetPixels(m_absPixelPosition, i+1);	// 0 == write on base screen, that's why we add 1
-//			fv.m_filterOutputTexture.SetPixels((int)( m_absPixelPosition.x), (int)((fv.filterOutputHeight - m_absPixelPosition.y) ), 2, 2, bluePixels);
+	       	fv.SetPixels(m_absPixelPosition, fm.colors[i]);
+			fv.DrawLine(0, (int) fm.prevAbsPixelPosition[i].x, (int) fm.prevAbsPixelPosition[i].y, (int)m_absPixelPosition.x, (int)m_absPixelPosition.y, Color.red);
 		}
 		
 	}
@@ -373,15 +386,13 @@ public class FubiUnity : MonoBehaviour
 	void LoadFilters() 
 	{
 		fm.Clear();
-		
+		m_previousAbsPixelPosition = m_absPixelPosition = Vector2.zero;
 
 		if(m_bUseSimpleAverage == true) {
 			Filter f = new Filter();
 			f.name = Filter.FILTER_NAME.SIMPLE_AVG;
 			f.numHistory = 10;		// Number of values to consider in mean
 			fm.AddFilter (f);
-			if (m_firstExecution == false)
-				fv.AddFilterDisplayTexture();
 		}
 
 		if(m_bUseMovingAverage == true) {
@@ -389,8 +400,8 @@ public class FubiUnity : MonoBehaviour
 			f.name = Filter.FILTER_NAME.MOVING_AVG;
 			f.numHistory = 10;		// Number of values to consider in moving average
 			fm.AddFilter (f);
-			if (m_firstExecution == false)
-				fv.AddFilterDisplayTexture();
+//			if (m_firstExecution == false)
+//				fv.AddFilterDisplayTexture();
 		}
 	
 		if(m_bUseSimpleAverage5 == true) {
@@ -398,12 +409,16 @@ public class FubiUnity : MonoBehaviour
 			f.name = Filter.FILTER_NAME.SIMPLE_AVG;
 			f.numHistory = 5;		// Number of values to consider in mean
 			fm.AddFilter (f);
-			if (m_firstExecution == false)
-				fv.AddFilterDisplayTexture();
+//			if (m_firstExecution == false)
+//				fv.AddFilterDisplayTexture();
 		}
 
-		m_firstExecution = true;
-
+		
+	}
+	
+	void printColorKey(UnityEngine.GUI gui)
+	{
+		
 	}
 
 	// Called for rendering the gui
@@ -420,14 +435,33 @@ public class FubiUnity : MonoBehaviour
 		
 		//AA: add the GUI elements
 		
-		GUI.Box (new Rect(25, 25, 200, 250) , "Filter Menu");
+		GUI.Box (new Rect(10, 25, 200, 250) , "Filter Menu");
 		
-		m_bUseSimpleAverage = GUI.Toggle(new Rect(35,50,150,30), m_bUseSimpleAverage, " Use Simple Average 10");
-		m_bUseMovingAverage = GUI.Toggle(new Rect(35,90,150,30), m_bUseMovingAverage, " Use Moving Average");
-		m_bUseSimpleAverage5 = GUI.Toggle(new Rect(35,130,150,30), m_bUseSimpleAverage5, " Use Simple Average 5");
+		int count = 0;
+
+		m_bUseSimpleAverage = GUI.Toggle(new Rect(45, 50,200,30), m_bUseSimpleAverage, " SIMPLE AVERAGE 10");
+		if(m_bUseSimpleAverage) 
+		{
+			GUI.Label (new Rect(15, 45, 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
+		}
+
+		m_bUseMovingAverage = GUI.Toggle(new Rect(45,90,200,30), m_bUseMovingAverage, " MOVING AVERAGE");
+		if(m_bUseMovingAverage) 
+		{
+			GUI.Label (new Rect(15, 85 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
+		}
+
+		m_bUseSimpleAverage5 = GUI.Toggle(new Rect(45,130,200,30), m_bUseSimpleAverage5, " SIMPLE AVERAGE 5");
+		if(m_bUseSimpleAverage5) 
+		{
+			GUI.Label (new Rect(15, 125 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			count++;
+		}
 		
-		string[] selStrings = new string[] {"1", "2", "3", "4"};	
-		GUI.SelectionGrid(new Rect (5,5, 20, 150), 0, selStrings, 1);
+		//string[] selStrings = new string[] {"1", "2", "3", "4"};	
+		//GUI.SelectionGrid(new Rect (5,5, 20, 150), 0, selStrings, 1);
 		
 		if( GUI.Button(new Rect(35, 170,150,30), "Clear"))
 		{
@@ -435,14 +469,16 @@ public class FubiUnity : MonoBehaviour
 			fv.DrawCircle();
 		}
 		
-		// If some button has been pressed
+		// If some button has been pressed OR this is the first exection
 		if(GUI.changed) 
 		{
 			LoadFilters();
+			
 			if(fm.filters.Count == 1)
 				m_principalCursor = 0;
+
 		}
-		
+					
 		if( prevScreenWidth != Screen.width || prevScreenHeight != Screen.height) 
 		{
 			// Resize writeable area, redraw the circle
@@ -496,7 +532,7 @@ public class FubiUnity : MonoBehaviour
 							if(m_bUseJointFiltering) {
 								Vector3 handPos = fm.joints[i]; // filter.Update(new Vector3(handX, handY, handZ), Filter.JOINT_TYPE.JOINT);
 								Vector3 relJointPos = fm.relativeJoints[i]; //filter.Update(new Vector3(relX, relY, relZ), Filter.JOINT_TYPE.RELATIVEJOINT);
-								Debug.Log ("hand " + handPos + " relJoint " + relJointPos);
+								//Debug.Log ("hand " + handPos + " relJoint " + relJointPos);
 								handZ = handPos.z;
 								handY = handPos.y;
 								handX = handPos.x;
@@ -561,8 +597,15 @@ public class FubiUnity : MonoBehaviour
 									if (m_relativeCursorPosition.x > -0.1f && m_relativeCursorPosition.x < 1.1f
 										&& m_relativeCursorPosition.y > -0.1f && m_relativeCursorPosition.y < 1.1f)
 									{
+										
+										
 										MoveMouse(m_relativeCursorPosition.x, m_relativeCursorPosition.y, i);
+										
+										// Each filter must store it's own value of relative position, absolute and previous absolute positions
 										fm.relativeCursorPosition[i] = m_relativeCursorPosition;
+										fm.absPixelPosition[i] = m_absPixelPosition;
+										fm.prevAbsPixelPosition[i] = m_previousAbsPixelPosition;
+
 										DrawFilterOutputs(i);
 										m_gotNewFubiCoordinates = true;
 										m_lastCursorChangeDoneByFubi = true;
@@ -966,7 +1009,7 @@ public class FubiUnity : MonoBehaviour
                         m_mapping.y = 200.0f / 550.0f * m_mapping.height;
                         m_mapping.width = m_mapping.height / m_aspect;
                         m_mapping.x = -100.0f / (550.0f / m_aspect) * m_mapping.width;
-						Debug.Log ("m_mapping.x=" + m_mapping.x + "m_mapping.y=" + m_mapping.y + "m_mapping.height=" + m_mapping.height + "m_mapping.width=" + m_mapping.width);
+						//Debug.Log ("m_mapping.x=" + m_mapping.x + "m_mapping.y=" + m_mapping.y + "m_mapping.height=" + m_mapping.height + "m_mapping.width=" + m_mapping.width);
 						return true;
                     }
                 }
