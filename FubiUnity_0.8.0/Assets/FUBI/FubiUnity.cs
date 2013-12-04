@@ -22,12 +22,12 @@ public class FubiUnity : MonoBehaviour
 	bool m_bUseSimpleAverage5 = false;
 	bool m_bDblMovingAverage = false;
 	bool m_bUseExpSmoothing = false;
-	bool m_bUseDblExpSmoothing = true;
+	bool m_bUseDblExpSmoothing = false;
 	bool m_bUseMedian = false;
 	bool m_bUseNone = true;
-	bool m_bUseCombination1 = true;		// Hand joint filtered by simple avg, shoulder joint by median
-	bool m_bUseCombination2 = true;		// Hand joint filtered by double moving average, shoulder joint by median
-	bool m_bUseAdaptive = true;			// Adaptive double exponential
+	bool m_bUseCombination1 = false;		// Hand joint filtered by simple avg, shoulder joint by median
+	bool m_bUseCombination2 = false;		// Hand joint filtered by double moving average, shoulder joint by median
+	bool m_bUseAdaptive = false;			// Adaptive double exponential
 	
 	
 	int m_principalCursor = 0;	// Which filter to associatethe cursor with
@@ -75,8 +75,6 @@ public class FubiUnity : MonoBehaviour
     // The current user for all controls
     uint m_currentUser = 0;
 
-	
-	
 	// The depth texture
     private Texture2D m_depthMapTexture;
     // And its pixels
@@ -138,6 +136,7 @@ public class FubiUnity : MonoBehaviour
 	//AA: Resizes the writeable area when screen is resized
 	void WriteableAreaResize() 
 	{
+		fv.filterOutputLocX = Screen.width/3 - 50;
 		fv.Initialise();
 	}	
     
@@ -148,20 +147,17 @@ public class FubiUnity : MonoBehaviour
 		filter = new Filter();
 		fv = new FilterVisualization();
 		fm = new FilterManager();
+		fv.filterOutputLocX = Screen.width/3 - 50;
 		fv.Initialise();
 		fv.DrawCircle();
 
 		m_colorTextureDictionary = new Dictionary<string, Texture2D>();
 		foreach(Texture2D tex in m_colorTextures) 
 		{
-			Debug.Log(" tex name: " + tex.name);
 			m_colorTextureDictionary.Add (tex.name, tex);
 		}
 		
 		LoadFilters();
-		
-
-		
 		
 		// First set instance so Fubi.release will not be called while destroying old objects
         instance = this;
@@ -200,9 +196,9 @@ public class FubiUnity : MonoBehaviour
 
 		
         // Initialize debug image
-        m_depthMapTexture = new Texture2D((int)(m_xRes / m_factor), (int)(m_yRes / m_factor), TextureFormat.RGBA32, false);
-        m_depthMapPixels = new Color[(int)((m_xRes / m_factor) * (m_yRes / m_factor))];
-        m_rawImage = new byte[(int)(m_xRes * m_yRes * 4)];
+//        m_depthMapTexture = new Texture2D((int)(m_xRes / m_factor), (int)(m_yRes / m_factor), TextureFormat.RGBA32, false);
+//        m_depthMapPixels = new Color[(int)((m_xRes / m_factor) * (m_yRes / m_factor))];
+//        m_rawImage = new byte[(int)(m_xRes * m_yRes * 4)];
 
         m_userImageTexture = null;
 
@@ -252,35 +248,35 @@ public class FubiUnity : MonoBehaviour
         // update FUBI
        	Fubi.updateSensor();
 
-		// AA: Collision detection for our game object
-		// Convert from GUI coordinates (Top-left: 0,0 to Bottom-right ) to Screen coordinates ((Bottom-left: 0,0 to Top-right )): 
-		// Screen-coordinate.y = Screen.height - GUI-coordinate.y;
-		Ray ray = Camera.mainCamera.ScreenPointToRay(new Vector2(m_absPixelPosition.x, Screen.height - m_absPixelPosition.y));
-		
-		// check for underlying objects
-		RaycastHit hit;
-		if(Physics.Raycast(ray, out hit))
-		{
-			foreach(GameObject obj in MyGameObjects)
-			{
-				if(hit.collider.gameObject == obj)
-				{
-					
-					if (clickRecognized()) {
-                		// an object was hit by the ray. Color it
-						if(obj.renderer.material.color == Color.red) {
-							obj.renderer.material.color = Color.blue;
-							break;
-						}
-						else {
-							obj.renderer.material.color = Color.red;	
-							break;
-						}
-					}
-				}
-			}
-		}
-
+//		// AA: Collision detection for our game object
+//		// Convert from GUI coordinates (Top-left: 0,0 to Bottom-right ) to Screen coordinates ((Bottom-left: 0,0 to Top-right )): 
+//		// Screen-coordinate.y = Screen.height - GUI-coordinate.y;
+//		Ray ray = Camera.mainCamera.ScreenPointToRay(new Vector2(m_absPixelPosition.x, Screen.height - m_absPixelPosition.y));
+//		
+//		// check for underlying objects
+//		RaycastHit hit;
+//		if(Physics.Raycast(ray, out hit))
+//		{
+//			foreach(GameObject obj in MyGameObjects)
+//			{
+//				if(hit.collider.gameObject == obj)
+//				{
+//					
+//					if (clickRecognized()) {
+//                		// an object was hit by the ray. Color it
+//						if(obj.renderer.material.color == Color.red) {
+//							obj.renderer.material.color = Color.blue;
+//							break;
+//						}
+//						else {
+//							obj.renderer.material.color = Color.red;	
+//							break;
+//						}
+//					}
+//				}
+//			}
+//		}
+//
 		
         // update flags if gestures or the swipe menu have been displayed
         if (m_gesturesDisplayed)
@@ -302,9 +298,9 @@ public class FubiUnity : MonoBehaviour
 		// AA: This 
         if (!m_disableTrackingImage && (!m_disableTrackingImageWithSwipeMenu || !m_swipeMenuDisplayedLastFrame))
 		{
-			uint renderOptions = (uint)(FubiUtils.RenderOptions.Default | FubiUtils.RenderOptions.DetailedFaceShapes | FubiUtils.RenderOptions.FingerShapes);
-            Fubi.getImage(m_rawImage, FubiUtils.ImageType.Depth, FubiUtils.ImageNumChannels.C4, FubiUtils.ImageDepth.D8, renderOptions);
-            Updatem_depthMapTexture();
+//			uint renderOptions = (uint)(FubiUtils.RenderOptions.Default | FubiUtils.RenderOptions.DetailedFaceShapes | FubiUtils.RenderOptions.FingerShapes);
+//            Fubi.getImage(m_rawImage, FubiUtils.ImageType.Depth, FubiUtils.ImageNumChannels.C4, FubiUtils.ImageDepth.D8, renderOptions);
+//            Updatem_depthMapTexture();
 		}
     }
 
@@ -489,33 +485,33 @@ public class FubiUnity : MonoBehaviour
 
 
 		//AA: add the GUI elements
+		int shift = 42;
+		GUI.Box (new Rect(5 + shift, 25, Screen.width/3 - 130, Screen.height - 50) , "FILTERS");
+
+		m_bUseSimpleAverage = GUI.Toggle(new Rect(45 + shift, 50,200,30), m_bUseSimpleAverage, " SIMPLE AVERAGE 10");
+
+		m_bUseMovingAverage = GUI.Toggle(new Rect(45+ shift,90,200,30), m_bUseMovingAverage, " MOVING AVERAGE");
+
+		m_bUseSimpleAverage5 = GUI.Toggle(new Rect(45+ shift,130,200,30), m_bUseSimpleAverage5, " SIMPLE AVERAGE 5");
+
+		m_bDblMovingAverage = GUI.Toggle(new Rect(45+ shift,170,200,30), m_bDblMovingAverage, " DOUBLE MOV AVERAGE");
+
+		m_bUseExpSmoothing = GUI.Toggle(new Rect(45 + shift,210,200,30), m_bUseExpSmoothing, " EXP SMOOTHING");
+
+		m_bUseDblExpSmoothing = GUI.Toggle(new Rect(45 + shift,250,200,30), m_bUseDblExpSmoothing, " DOUBLE EXP SMOOTHING");
+
+		m_bUseAdaptive = GUI.Toggle(new Rect(45 + shift,290,200,30), m_bUseAdaptive, " ADAPTIVE DBL EXP");
+
+		m_bUseMedian = GUI.Toggle(new Rect(45 + shift,330,200,30), m_bUseMedian, " MEDIAN");
 		
-		GUI.Box (new Rect(10, 25, 200, Screen.height - 10) , "Filter Menu");
-
-		m_bUseSimpleAverage = GUI.Toggle(new Rect(45, 50,200,30), m_bUseSimpleAverage, " SIMPLE AVERAGE 10");
-
-		m_bUseMovingAverage = GUI.Toggle(new Rect(45,90,200,30), m_bUseMovingAverage, " MOVING AVERAGE");
-
-		m_bUseSimpleAverage5 = GUI.Toggle(new Rect(45,130,200,30), m_bUseSimpleAverage5, " SIMPLE AVERAGE 5");
-
-		m_bDblMovingAverage = GUI.Toggle(new Rect(45,170,200,30), m_bDblMovingAverage, " DOUBLE MOV AVERAGE");
-
-		m_bUseExpSmoothing = GUI.Toggle(new Rect(45,210,200,30), m_bUseExpSmoothing, " EXP SMOOTHING");
-
-		m_bUseDblExpSmoothing = GUI.Toggle(new Rect(45,250,200,30), m_bUseDblExpSmoothing, " DOUBLE EXP SMOOTHING");
-
-		m_bUseAdaptive = GUI.Toggle(new Rect(45,290,200,30), m_bUseAdaptive, " ADAPTIVE DBL EXP");
-
-		m_bUseMedian = GUI.Toggle(new Rect(45,330,200,30), m_bUseMedian, " MEDIAN");
+		m_bUseCombination1 = GUI.Toggle(new Rect(45 + shift,370,200,30), m_bUseCombination1, " SIMPLE AVG + Median");
 		
-		m_bUseCombination1 = GUI.Toggle(new Rect(45,370,200,30), m_bUseCombination1, " SIMPLE AVG + Median");
+		m_bUseCombination2 = GUI.Toggle(new Rect(45+ shift,410,200,30), m_bUseCombination2, " DBL MOV AVG + Median");
 		
-		m_bUseCombination2 = GUI.Toggle(new Rect(45,410,200,30), m_bUseCombination2, " DBL MOV AVG + Median");
-		
-		m_bUseNone = GUI.Toggle(new Rect(45,450,200,30), m_bUseNone, " NONE");
+		m_bUseNone = GUI.Toggle(new Rect(45 + shift,450,200,30), m_bUseNone, " NONE");
 		
 		
-		if( GUI.Button(new Rect(35, Screen.height - 50,150,30), "Clear"))
+		if( GUI.Button(new Rect(50+ shift, Screen.height - 75,150,30), "Clear"))
 		{
 			WriteableAreaResize();
 			fv.DrawCircle();
@@ -534,67 +530,67 @@ public class FubiUnity : MonoBehaviour
 		int count = 0;
 		if(m_bUseSimpleAverage) 
 		{
-			GUI.Label (new Rect(15, 45, 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15+ shift, 45, 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 		
 		if(m_bUseMovingAverage) 
 		{
-			GUI.Label (new Rect(15, 85 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15+ shift, 85 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 
 		if(m_bUseSimpleAverage5) 
 		{
-			GUI.Label (new Rect(15, 125 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15+ shift, 125 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 
 		if(m_bDblMovingAverage) 
 		{
-			GUI.Label (new Rect(15, 165 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15+ shift, 165 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 
 		if(m_bUseExpSmoothing) 
 		{
-			GUI.Label (new Rect(15, 205 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15+ shift, 205 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 		
 		if(m_bUseDblExpSmoothing) 
 		{
-			GUI.Label (new Rect(15, 245 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15+ shift, 245 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 		
 		if(m_bUseAdaptive) 
 		{
-			GUI.Label (new Rect(15, 285 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15+ shift, 285 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 		
 		if(m_bUseMedian) 
 		{
-			GUI.Label (new Rect(15, 325 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15+ shift, 325 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 		
 		if(m_bUseCombination1) 
 		{
-			GUI.Label (new Rect(15, 365 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15+ shift, 365 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 		
 		if(m_bUseCombination2) 
 		{
-			GUI.Label (new Rect(15, 405 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15+ shift, 405 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 		
 		if(m_bUseNone) 
 		{
-			GUI.Label (new Rect(15, 445 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
+			GUI.Label (new Rect(15+ shift, 445 , 30, 30), m_colorTextureDictionary[fm.colors[count].ToString ()]);
 			count++;
 		}
 		
@@ -649,10 +645,10 @@ public class FubiUnity : MonoBehaviour
 						for(int i = 0 ; i< fm.filters.Count ; i++ )
 						{
 							if(m_bUseJointFiltering) {
-								Debug.Log ("Prehand " + new Vector3(handX, handY, handZ) + " relJoint " + new Vector3(relX, relY, relZ));
+								//Debug.Log ("Prehand " + new Vector3(handX, handY, handZ) + " relJoint " + new Vector3(relX, relY, relZ));
 								Vector3 handPos = fm.joints[i]; // filter.Update(new Vector3(handX, handY, handZ), Filter.JOINT_TYPE.JOINT);
 								Vector3 relJointPos = fm.relativeJoints[i]; //filter.Update(new Vector3(relX, relY, relZ), Filter.JOINT_TYPE.RELATIVEJOINT);
-								Debug.Log ("hand " + handPos + " relJoint " + relJointPos);
+								//Debug.Log ("hand " + handPos + " relJoint " + relJointPos);
 								handZ = handPos.z;
 								handY = handPos.y;
 								handX = handPos.x;
